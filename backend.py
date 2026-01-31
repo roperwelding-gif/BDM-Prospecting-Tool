@@ -131,150 +131,148 @@ def extract_contact_info(text: str) -> Dict[str, Optional[str]]:
     if phones:
         contact_info['phone'] = '-'.join(phones[0])
     
-    # Extract LinkedIn URL
-    linkedin_pattern = r'https?://(?:www\.)?linkedin\.com/(?:in|company)/[\w-]+'
+    # Extract LinkedIn URL - look for personal profiles first
+    linkedin_pattern = r'https?://(?:www\.)?linkedin\.com/in/[\w-]+'
     linkedins = re.findall(linkedin_pattern, text, re.IGNORECASE)
     if linkedins:
         contact_info['linkedin'] = linkedins[0]
+    else:
+        # Fallback to company profiles
+        linkedin_company_pattern = r'https?://(?:www\.)?linkedin\.com/company/[\w-]+'
+        company_linkedins = re.findall(linkedin_company_pattern, text, re.IGNORECASE)
+        if company_linkedins:
+            contact_info['linkedin'] = company_linkedins[0]
     
     return contact_info
+
+def extract_linkedin_from_text(text: str) -> Optional[str]:
+    """Extract LinkedIn profile URL from specific text block"""
+    # Look for personal LinkedIn profiles
+    linkedin_pattern = r'https?://(?:www\.)?linkedin\.com/in/[\w-]+'
+    matches = re.findall(linkedin_pattern, text, re.IGNORECASE)
+    if matches:
+        return matches[0]
+    
+    # Fallback to company
+    linkedin_company_pattern = r'https?://(?:www\.)?linkedin\.com/company/[\w-]+'
+    company_matches = re.findall(linkedin_company_pattern, text, re.IGNORECASE)
+    if company_matches:
+        return company_matches[0]
+    
+    return None
 
 def extract_prospects_from_content(content: str, source_url: str) -> List[Dict]:
     """
     Extract prospect information from Firecrawl markdown content.
-    Handles common team page layouts and avoids false positives.
+    Uses smarter name detection to avoid false positives.
     """
     prospects = []
     
     if not content or len(content.strip()) < 20:
         return prospects
     
-    # Clean markdown artifacts (links, images, etc.)
-    # Remove markdown link syntax: [text](url) -> text
-    content = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', content)
-    # Remove markdown image syntax: ![alt](url) -> alt
+    # Clean markdown artifacts but PRESERVE LinkedIn URLs
     content = re.sub(r'!\[([^\]]*)\]\([^)]+\)', r'\1', content)
-    # Remove markdown bold/italic: **text** -> text, *text* -> text
     content = re.sub(r'\*\*([^*]+)\*\*', r'\1', content)
     content = re.sub(r'\*([^*]+)\*', r'\1', content)
     content = re.sub(r'__([^_]+)__', r'\1', content)
     content = re.sub(r'_([^_]+)_', r'\1', content)
     
-    lines = [line.strip() for line in content.split('\n') if line.strip()]
-    
     title_keywords = [
         'CEO', 'CTO', 'CFO', 'COO', 'CMO', 'VP', 'Director', 'Manager', 
         'Head of', 'Lead', 'Engineer', 'Developer', 'Designer', 'Founder',
         'President', 'Chief', 'Officer', 'Executive', 'Consultant',
-        'Architect', 'Principal', 'Senior', 'Junior', 'Associate', 'Co-founder'
+        'Architect', 'Principal', 'Senior', 'Junior', 'Associate', 'Co-founder',
+        'Controller'
     ]
     
     company_keywords = ['Inc', 'Corp', 'LLC', 'Ltd', 'Company', 'Co.', 'Technologies', 'Solutions', 'Services']
-    skip_keywords = ['©', 'Terms', 'Privacy', 'Contact', 'Copyright', 'All rights', 'Website', 'Made with', 'Terms of', '|', 'http']
     
-    # Track seen prospects to avoid duplicates
+    # More restrictive name pattern: exactly 2-3 words, each 2+ letters, in sentence context
+    # Must be preceded by newline/start and followed by newline/title/LinkedIn
+    name_pattern = r'(?:^|\n)\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})\s*(?:\n|$|LinkedIn|Chief|VP|Director|President|Head|Lead|Engineer|Developer|Designer)'
+    
     seen_prospects = set()
+    name_matches = re.finditer(name_pattern, content, re.MULTILINE)
     
-    i = 0
-    while i < len(lines):
-        line = lines[i]
+    for match in name_matches:
+        name = match.group(1).strip()
+        pos = match.start()
         
-        # Skip noise lines and very long lines (likely bios/paragraphs)
-        if any(skip in line for skip in skip_keywords) or len(line) > 200:
-            i += 1
+        # Skip common false positives
+        skip_names = ['LinkedIn', 'Apple', 'Google', 'Facebook', 'Adobe', 'E&Y', 'CMU', 'MongoDB', 'Kong', 
+                      'FoundationDB', 'Visual', 'Sciences', 'Fire', 'Darkness', 'Ring', 'Test', 'Contact',
+                      'Backstory', 'Leadership', 'Careers', 'Brand', 'Fintech', 'Blockchain', 'Databases',
+                      'Cloud', 'Distributed', 'Reliability', 'Glossary', 'Cost', 'Outages', 'Deterministic',
+                      'Simulation', 'Property', 'Based', 'Autonomous', 'Testing', 'Techniques', 'Catalog',
+                      'Blockchains', 'Acid', 'Compliance', 'Services', 'Experience', 'Problems', 'Security',
+                      'Manifesto', 'Stories', 'Working', 'Antithesis', 'Primer', 'Catalog']
+        
+        if name in skip_names or len(name.split()) < 2:
             continue
         
-        # Skip lines that are just titles with no name
-        if any(keyword in line for keyword in title_keywords) and not any(c.isupper() for c in line.split()[0:1]):
-            i += 1
-            continue
+        # Get context window: 400 chars before and 1200 chars after
+        context_start = max(0, pos - 400)
+        context_end = min(len(content), pos + 1200)
+        context = content[context_start:context_end]
         
-        # Pattern: Name (2-3 capitalized words, not too long)
-        name_pattern = r'^([A-Z][a-z]+(?:\s+[A-Z][a-z]+(?:\s+[A-Z]\.?)?){1,2})$'
-        name_match = re.match(name_pattern, line)
+        # Find title in context
+        title = None
+        for keyword in title_keywords:
+            if keyword.lower() in context.lower():
+                # Find the line with the keyword
+                lines = context.split('\n')
+                for line in lines:
+                    if keyword.lower() in line.lower() and len(line) < 150:
+                        title = line.strip()
+                        break
+                if title:
+                    break
         
-        # Also check for patterns like "Name • Title" on same line
-        name_title_pattern = r'^([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})\s*•\s*(.+)$'
-        name_title_match = re.match(name_title_pattern, line)
+        # Find company in context - look for keywords specifically
+        company = None
+        for keyword in company_keywords:
+            if keyword in context:
+                # Find company phrase
+                idx = context.find(keyword)
+                start = max(0, idx - 50)
+                end = min(len(context), idx + 50)
+                phrase = context[start:end]
+                
+                # Extract clean company name
+                company_match = re.search(rf'([A-Z][a-zA-Z0-9\s&]*?{keyword})', phrase)
+                if company_match:
+                    company = company_match.group(1).strip()
+                    if len(company) < 100:
+                        break
         
-        if name_title_match:
-            # Handle inline format: "John Smith • CEO at Company"
+        # Find LinkedIn
+        linkedin_url = extract_linkedin_from_text(context)
+        
+        # Find email
+        email = None
+        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        emails = re.findall(email_pattern, context)
+        if emails:
+            personal_emails = [e for e in emails if not any(skip in e.lower() for skip in ['noreply', 'no-reply', 'support', 'info@', 'hello@'])]
+            email = personal_emails[0] if personal_emails else emails[0]
+        
+        # Only add if we have title or company
+        if (title or company) and name:
             prospect = {
-                'name': name_title_match.group(1),
-                'title': name_title_match.group(2).strip()
+                'name': name,
+                'title': title,
+                'company': company,
+                'email': email,
+                'linkedin_url': linkedin_url,
+                'source': source_url
             }
             
-            # Extract company from title if possible
-            if ' at ' in prospect['title']:
-                parts = prospect['title'].split(' at ')
-                prospect['title'] = parts[0].strip()
-                prospect['company'] = parts[1].strip()
-            
-            # Create unique key to avoid duplicates
+            # Deduplicate
             prospect_key = f"{prospect['name']}_{prospect.get('title', '')}_{prospect.get('company', '')}"
-            
-            if prospect_key not in seen_prospects and prospect.get('name'):
+            if prospect_key not in seen_prospects:
                 seen_prospects.add(prospect_key)
                 prospects.append(prospect)
-            
-            i += 1
-            
-        elif name_match:
-            prospect = {'name': name_match.group(1)}
-            j = i + 1
-            found_title_or_company = False
-            
-            # Lookahead up to 4 lines for title and company
-            while j < len(lines) and j - i < 5:
-                next_line = lines[j]
-                
-                if not next_line or any(skip in next_line for skip in skip_keywords) or len(next_line) > 150:
-                    j += 1
-                    continue
-                
-                # Check if it's another name (end of this prospect)
-                if re.match(name_pattern, next_line) or re.match(name_title_pattern, next_line):
-                    break
-                
-                has_title = any(keyword.lower() in next_line.lower() for keyword in title_keywords)
-                has_company = any(keyword in next_line for keyword in company_keywords)
-                
-                if has_title and 'title' not in prospect and len(next_line) < 100:
-                    prospect['title'] = next_line
-                    found_title_or_company = True
-                    j += 1
-                elif has_company and 'company' not in prospect and len(next_line) < 100:
-                    prospect['company'] = next_line
-                    found_title_or_company = True
-                    j += 1
-                elif not has_title and not has_company and len(next_line) < 200:
-                    # Might be company name without keywords, accept if follows title
-                    if 'title' in prospect and 'company' not in prospect:
-                        prospect['company'] = next_line
-                        found_title_or_company = True
-                    j += 1
-                else:
-                    j += 1
-            
-            # Only add if we found title or company, and it's a real prospect
-            if found_title_or_company and prospect.get('name'):
-                prospect_key = f"{prospect['name']}_{prospect.get('title', '')}_{prospect.get('company', '')}"
-                if prospect_key not in seen_prospects:
-                    seen_prospects.add(prospect_key)
-                    prospects.append(prospect)
-            
-            i = j
-        else:
-            i += 1
-    
-    # Add contact info
-    contact_info = extract_contact_info(content)
-    for prospect in prospects:
-        prospect['source'] = source_url
-        if not prospect.get('email') and contact_info['email']:
-            prospect['email'] = contact_info['email']
-        if not prospect.get('linkedin_url') and contact_info['linkedin']:
-            prospect['linkedin_url'] = contact_info['linkedin']
     
     return prospects
 

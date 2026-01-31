@@ -1107,23 +1107,25 @@
                 container.innerHTML += prospectHtml;
             }
             
-            // Show raw content
-            if (rawData) {
-                const content = rawData.raw_content || rawData.content;
-                if (content) {
-                    container.innerHTML += `
-                        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-top: 12px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                <h3 style="margin: 0;">📄 Scraped Content</h3>
-                                <button class="secondary" onclick="addProspectManually('${sourceUrl || ''}')">
-                                    ➕ Add Prospect Manually
-                                </button>
-                            </div>
-                            <div style="max-height: 400px; overflow-y: auto; background: var(--bg-secondary); padding: 16px; border-radius: 6px; font-size: 12px; font-family: monospace; white-space: pre-wrap; line-height: 1.5;">
+            // Show raw content from pages array
+            if (rawData && rawData.pages && rawData.pages.length > 0) {
+                rawData.pages.forEach((page, pageIdx) => {
+                    const content = page.content || '';
+                    if (content) {
+                        container.innerHTML += `
+                            <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-top: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                    <h3 style="margin: 0;">📄 Scraped Content - Page ${pageIdx + 1}</h3>
+                                    <button class="secondary" onclick="addProspectManually('${page.url || sourceUrl || ''}')">
+                                        ➕ Add Prospect Manually
+                                    </button>
+                                </div>
+                                <div style="max-height: 400px; overflow-y: auto; background: var(--bg-secondary); padding: 16px; border-radius: 6px; font-size: 12px; font-family: monospace; white-space: pre-wrap; line-height: 1.5;">
 ${content.substring(0, 5000)}${content.length > 5000 ? '\n\n... (truncated)' : ''}</div>
-                        </div>
-                    `;
-                }
+                            </div>
+                        `;
+                    }
+                });
             }
             
             updateBulkActionsBar();
