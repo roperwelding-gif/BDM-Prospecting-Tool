@@ -22,6 +22,7 @@
             --success: #10b981;
             --danger: #ef4444;
             --warning: #f59e0b;
+            --info: #3b82f6;
         }
 
         body {
@@ -101,6 +102,14 @@
 
         button.danger:hover {
             background: #dc2626;
+        }
+
+        button.success {
+            background: var(--success);
+        }
+
+        button.success:hover {
+            background: #059669;
         }
 
         .stats {
@@ -304,10 +313,16 @@
             border-radius: 8px;
             padding: 16px;
             display: grid;
-            grid-template-columns: 1fr auto;
+            grid-template-columns: auto 1fr auto;
             gap: 16px;
             align-items: center;
             transition: all 0.2s ease;
+        }
+
+        .prospect-card.selected {
+            background: #f0f7ff;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
         }
 
         .prospect-card:hover {
@@ -317,6 +332,17 @@
 
         .prospect-card.crawled {
             border-left: 4px solid var(--warning);
+        }
+
+        .prospect-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        .prospect-info {
+            flex: 1;
         }
 
         .prospect-info h3 {
@@ -468,17 +494,51 @@
             justify-content: flex-end;
         }
 
+        .bulk-actions {
+            background: var(--bg);
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .bulk-actions.active {
+            display: flex;
+        }
+
+        .bulk-actions-count {
+            font-weight: 600;
+            color: var(--primary);
+            flex: 1;
+        }
+
+        .bulk-actions button {
+            white-space: nowrap;
+        }
+
+        .bulk-actions button.bulk-add {
+            background: var(--success);
+        }
+
+        .bulk-actions button.bulk-add:hover {
+            background: #059669;
+        }
+
         @media (max-width: 768px) {
             .input-row {
                 grid-template-columns: 1fr;
             }
 
             .prospect-card {
-                grid-template-columns: 1fr;
+                grid-template-columns: auto 1fr;
             }
 
             .prospect-actions {
                 justify-content: flex-start;
+                grid-column: 2;
             }
         }
     </style>
@@ -563,6 +623,13 @@
             </div>
 
             <div id="crawl-status" class="crawl-status"></div>
+        </div>
+
+        <!-- Bulk Actions Bar -->
+        <div id="bulk-actions" class="bulk-actions">
+            <span class="bulk-actions-count"><span id="selected-count">0</span> selected</span>
+            <button class="secondary" onclick="clearSelection()">Clear Selection</button>
+            <button class="bulk-add success" onclick="addSelectedProspects()">✓ Add to Pipeline</button>
         </div>
 
         <!-- Database Search Section -->
@@ -663,6 +730,8 @@
         let prospects = [];
         let currentFilter = 'all';
         let editingId = null;
+        let selectedProspectsForBulkAdd = new Set();
+        let crawledProspectsCache = [];
 
         // Initialize
         async function init() {
@@ -679,6 +748,20 @@
         function handleCrawlTypeChange(e) {
             const limitGroup = document.getElementById('crawl-limit-group');
             limitGroup.style.display = e.target.value === 'crawl' ? 'block' : 'none';
+        }
+
+        // Extract company name from URL
+        function extractCompanyFromUrl(url) {
+            try {
+                const urlObj = new URL(url);
+                let domain = urlObj.hostname.replace('www.', '');
+                let company = domain.split('.')[0];
+                // Capitalize first letter
+                company = company.charAt(0).toUpperCase() + company.slice(1);
+                return company;
+            } catch (e) {
+                return null;
+            }
         }
 
         // Load prospects from API
@@ -719,7 +802,8 @@
             }
 
             container.innerHTML = filtered.map(p => `
-                <div class="prospect-card ${p.source ? 'crawled' : ''}">
+                <div class="prospect-card ${p.source ? 'crawled' : ''} ${selectedProspectsForBulkAdd.has(p.id) ? 'selected' : ''}">
+                    <input type="checkbox" class="prospect-checkbox" ${selectedProspectsForBulkAdd.has(p.id) ? 'checked' : ''} onchange="toggleProspectSelection('${p.id}', this.checked)" />
                     <div class="prospect-info">
                         <h3>${p.name}</h3>
                         <p><strong>${p.company}</strong> ${p.title ? '• ' + p.title : ''}</p>
@@ -727,7 +811,7 @@
                         <div class="prospect-meta">
                             <span class="stage-badge">${p.status}</span>
                             <span class="prospect-value">$${(p.deal_size || 0).toLocaleString()}</span>
-                            ${p.source ? `<span class="source-badge">🌐 ${p.source}</span>` : ''}
+                            ${p.source ? `<span class="source-badge">🌐 ${extractDomain(p.source)}</span>` : ''}
                             ${p.linkedin_url ? '<span>🔗 LinkedIn</span>' : ''}
                         </div>
                     </div>
@@ -737,6 +821,92 @@
                     </div>
                 </div>
             `).join('');
+
+            updateBulkActionsBar();
+        }
+
+        function extractDomain(url) {
+            try {
+                const urlObj = new URL(url);
+                return urlObj.hostname.replace('www.', '');
+            } catch {
+                return 'web';
+            }
+        }
+
+        // Toggle prospect selection for bulk add
+        function toggleProspectSelection(prospectId, isSelected) {
+            if (isSelected) {
+                selectedProspectsForBulkAdd.add(prospectId);
+            } else {
+                selectedProspectsForBulkAdd.delete(prospectId);
+            }
+            updateBulkActionsBar();
+            displayProspects(); // Re-render to update selected state
+        }
+
+        // Update bulk actions bar visibility and count
+        function updateBulkActionsBar() {
+            const bulkActionsBar = document.getElementById('bulk-actions');
+            const selectedCount = document.getElementById('selected-count');
+            
+            if (selectedProspectsForBulkAdd.size > 0) {
+                bulkActionsBar.classList.add('active');
+                selectedCount.textContent = selectedProspectsForBulkAdd.size;
+            } else {
+                bulkActionsBar.classList.remove('active');
+            }
+        }
+
+        // Clear selection
+        function clearSelection() {
+            selectedProspectsForBulkAdd.clear();
+            updateBulkActionsBar();
+            displayProspects();
+        }
+
+        // Add all selected prospects to database
+        async function addSelectedProspects() {
+            if (selectedProspectsForBulkAdd.size === 0) {
+                showStatus('❌ No prospects selected', 'error');
+                return;
+            }
+
+            const prospectIds = Array.from(selectedProspectsForBulkAdd);
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const prospectId of prospectIds) {
+                const prospect = crawledProspectsCache.find(p => p._temp_id === prospectId);
+                if (!prospect) continue;
+
+                try {
+                    const response = await fetch(`${API_BASE}/prospects`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(prospect)
+                    });
+
+                    if (response.ok) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                    }
+                } catch (error) {
+                    console.error('Error adding prospect:', error);
+                    failCount++;
+                }
+            }
+
+            if (successCount > 0) {
+                showStatus(`✅ Added ${successCount} prospect${successCount !== 1 ? 's' : ''} to pipeline!`, 'success');
+                clearSelection();
+                await loadProspects();
+            }
+
+            if (failCount > 0) {
+                showStatus(`⚠️ Failed to add ${failCount} prospect${failCount !== 1 ? 's' : ''}`, 'warning');
+            }
         }
 
         // Filter prospects by status
@@ -779,6 +949,7 @@
 
             container.innerHTML = filtered.map(p => `
                 <div class="prospect-card ${p.source ? 'crawled' : ''}">
+                    <div style="width: 20px;"></div>
                     <div class="prospect-info">
                         <h3>${p.name}</h3>
                         <p><strong>${p.company}</strong> • ${p.title}</p>
@@ -786,7 +957,7 @@
                         <div class="prospect-meta">
                             <span class="stage-badge">${p.status}</span>
                             <span class="prospect-value">$${(p.deal_size || 0).toLocaleString()}</span>
-                            ${p.source ? `<span class="source-badge">🌐 ${p.source}</span>` : ''}
+                            ${p.source ? `<span class="source-badge">🌐 ${extractDomain(p.source)}</span>` : ''}
                         </div>
                     </div>
                     <div class="prospect-actions">
@@ -808,7 +979,6 @@
                 return;
             }
 
-            // Validate URL
             try {
                 new URL(url);
             } catch (e) {
@@ -838,24 +1008,18 @@
 
                 if (data.success) {
                     if (data.type === 'map') {
-                        // Show URL map
                         showStatus(`✅ Found ${data.urls.length} URLs on the site`, 'success');
                         displayUrlMap(data.urls);
                     } else {
-                        // Show prospects and raw content
                         const count = data.prospects ? data.prospects.length : 0;
                         
                         if (count > 0) {
-                            showStatus(`✅ Found ${count} prospects automatically`, 'success');
-                        } else if (data.has_raw_data) {
-                            showStatus(`⚠️ No prospects auto-detected, but content was scraped. Check the raw data below.`, 'warning');
+                            showStatus(`✅ Found ${count} prospects - select and add them below!`, 'success');
                         } else {
-                            showStatus('⚠️ No prospects found. Try a different URL or page.', 'warning');
+                            showStatus(`⚠️ No prospects auto-detected. Try a different URL.`, 'warning');
                         }
                         
-                        // Add source URL to data
-                        data.source = url;
-                        displayCrawledProspects(data.prospects || [], data);
+                        displayCrawledProspects(data.prospects || [], data, url);
                     }
                 } else {
                     showStatus(`❌ Error: ${data.error}`, 'error');
@@ -869,12 +1033,16 @@
             }
         }
 
-        // Display crawled prospects
-        function displayCrawledProspects(crawledProspects, rawData = null) {
+        // Display crawled prospects with multi-select
+        function displayCrawledProspects(crawledProspects, rawData = null, sourceUrl = null) {
             const container = document.getElementById('prospects-container');
             
+            // Clear cache for new crawl
+            crawledProspectsCache = [];
+            selectedProspectsForBulkAdd.clear();
+            
             let headerContent = '';
-            if (crawledProspects.length === 0 && rawData) {
+            if (crawledProspects.length === 0) {
                 headerContent = `
                     <div style="background: #fee2e2; padding: 16px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #ef4444;">
                         <strong>⚠️ No prospects auto-detected</strong>
@@ -888,36 +1056,58 @@
                 headerContent = `
                     <div style="background: #fef3c7; padding: 16px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #f59e0b;">
                         <strong>🌐 Found ${crawledProspects.length} prospects</strong>
-                        <p style="font-size: 13px; margin-top: 4px; color: #92400e;">Click "Add to Pipeline" to save any prospect to your database</p>
+                        <p style="font-size: 13px; margin-top: 4px; color: #92400e;">Select which ones you want to add to your pipeline</p>
                     </div>
                 `;
             }
             
             container.innerHTML = headerContent;
             
-            // Show auto-detected prospects
+            // Show crawled prospects with checkboxes
             if (crawledProspects.length > 0) {
-                container.innerHTML += crawledProspects.map(p => `
-                    <div class="prospect-card crawled">
-                        <div class="prospect-info">
-                            <h3>${p.name || 'Unknown'}</h3>
-                            <p><strong>${p.company || 'Unknown Company'}</strong> ${p.title ? '• ' + p.title : ''}</p>
-                            ${p.email ? `<p>📧 ${p.email}</p>` : ''}
-                            <div class="prospect-meta">
-                                <span class="source-badge">🌐 ${p.source || 'web'}</span>
-                                ${p.linkedin_url ? '<span>🔗 LinkedIn</span>' : ''}
+                const prospectHtml = crawledProspects.map((p, idx) => {
+                    const tempId = `crawled_${idx}`;
+                    // If company is Unknown, try to extract from source URL
+                    let company = p.company || 'Unknown Company';
+                    if (company === 'Unknown' || company === 'Unknown Company') {
+                        const extractedCompany = extractCompanyFromUrl(p.source || sourceUrl);
+                        if (extractedCompany) {
+                            company = extractedCompany;
+                        }
+                    }
+                    
+                    const prospectData = {
+                        ...p,
+                        company: company,
+                        status: 'lead',
+                        deal_size: 0,
+                        _temp_id: tempId
+                    };
+                    crawledProspectsCache.push(prospectData);
+                    
+                    return `
+                        <div class="prospect-card crawled">
+                            <input type="checkbox" class="prospect-checkbox" onchange="toggleCrawledProspectSelection('${tempId}', this.checked)" />
+                            <div class="prospect-info">
+                                <h3>${p.name || 'Unknown'}</h3>
+                                <p><strong>${company}</strong> ${p.title ? '• ' + p.title : ''}</p>
+                                ${p.email ? `<p>📧 ${p.email}</p>` : ''}
+                                <div class="prospect-meta">
+                                    <span class="source-badge">🌐 ${extractDomain(p.source || sourceUrl)}</span>
+                                    ${p.linkedin_url ? '<span>🔗 LinkedIn</span>' : ''}
+                                </div>
+                            </div>
+                            <div class="prospect-actions">
+                                <button class="secondary" onclick="editCrawledProspect(${idx})">Edit</button>
                             </div>
                         </div>
-                        <div class="prospect-actions">
-                            <button onclick='addFromFirecrawl(${JSON.stringify(p).replace(/'/g, "\\'")})'>
-                                ➕ Add to Pipeline
-                            </button>
-                        </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
+                
+                container.innerHTML += prospectHtml;
             }
             
-            // Show raw scraped content
+            // Show raw content
             if (rawData) {
                 const content = rawData.raw_content || rawData.content;
                 if (content) {
@@ -925,7 +1115,7 @@
                         <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-top: 12px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                 <h3 style="margin: 0;">📄 Scraped Content</h3>
-                                <button class="secondary" onclick="addProspectManually('${rawData.source || ''}')">
+                                <button class="secondary" onclick="addProspectManually('${sourceUrl || ''}')">
                                     ➕ Add Prospect Manually
                                 </button>
                             </div>
@@ -936,31 +1126,46 @@ ${content.substring(0, 5000)}${content.length > 5000 ? '\n\n... (truncated)' : '
                 }
             }
             
-            // Show multiple pages if crawled
-            if (rawData && rawData.pages) {
-                rawData.pages.forEach((page, index) => {
-                    container.innerHTML += `
-                        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-top: 12px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                <h3 style="margin: 0; font-size: 14px;">📄 Page ${index + 1}: ${page.url}</h3>
-                                <button class="secondary" onclick="addProspectManually('${page.url}')">
-                                    ➕ Add Prospect
-                                </button>
-                            </div>
-                            <div style="max-height: 200px; overflow-y: auto; background: var(--bg-secondary); padding: 12px; border-radius: 6px; font-size: 11px; font-family: monospace; white-space: pre-wrap; line-height: 1.4;">
-${page.content}</div>
-                        </div>
-                    `;
-                });
+            updateBulkActionsBar();
+        }
+
+        function toggleCrawledProspectSelection(tempId, isSelected) {
+            if (isSelected) {
+                selectedProspectsForBulkAdd.add(tempId);
+            } else {
+                selectedProspectsForBulkAdd.delete(tempId);
             }
+            updateBulkActionsBar();
+        }
+
+        function editCrawledProspect(idx) {
+            const prospect = crawledProspectsCache[idx];
+            editingId = null;
+            document.getElementById('modal-title').textContent = 'Edit Prospect';
+            document.getElementById('name').value = prospect.name || '';
+            document.getElementById('company').value = prospect.company || '';
+            document.getElementById('title').value = prospect.title || '';
+            document.getElementById('email').value = prospect.email || '';
+            document.getElementById('status').value = 'lead';
+            document.getElementById('deal-size').value = 0;
+            document.getElementById('linkedin-url').value = prospect.linkedin_url || '';
+            document.getElementById('notes').value = `Found from: ${prospect.source || 'web'}`;
+            
+            // Store the index so we can update cache on save
+            document.getElementById('prospect-form').dataset.crawledIdx = idx;
+            
+            document.getElementById('prospect-modal').classList.add('active');
         }
         
-        // Add prospect manually with source pre-filled
         window.addProspectManually = function(source) {
-            openModal();
+            editingId = null;
+            document.getElementById('modal-title').textContent = 'Add Prospect';
+            document.getElementById('prospect-form').reset();
+            document.getElementById('prospect-form').dataset.crawledIdx = '';
             if (source) {
                 document.getElementById('notes').value = `Found from: ${source}`;
             }
+            document.getElementById('prospect-modal').classList.add('active');
         };
 
         // Display URL map
@@ -980,48 +1185,12 @@ ${page.content}</div>
             `;
         }
 
-        // Add prospect from Firecrawl
-        async function addFromFirecrawl(prospectData) {
-            const prospect = {
-                name: prospectData.name || 'Unknown',
-                company: prospectData.company || 'Unknown',
-                title: prospectData.title || '',
-                email: prospectData.email || '',
-                status: 'lead',
-                deal_size: 0,
-                source: prospectData.source || '',
-                linkedin_url: prospectData.linkedin_url || '',
-                notes: `Found via Firecrawl from ${prospectData.source || 'web'}`
-            };
-
-            try {
-                const response = await fetch(`${API_BASE}/prospects`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(prospect)
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    showStatus('✅ Prospect added to pipeline!', 'success');
-                    await loadProspects();
-                } else {
-                    showStatus('❌ Failed to add prospect', 'error');
-                }
-            } catch (error) {
-                console.error('Error adding prospect:', error);
-                showStatus('❌ Error adding prospect', 'error');
-            }
-        }
-
         // Show status message
         function showStatus(message, type = 'info') {
             const statusDiv = document.getElementById('crawl-status');
             statusDiv.textContent = message;
             statusDiv.className = 'crawl-status active';
             
-            // Auto-hide after 5 seconds for success messages
             if (type === 'success') {
                 setTimeout(() => {
                     statusDiv.classList.remove('active');
@@ -1034,6 +1203,7 @@ ${page.content}</div>
             editingId = null;
             document.getElementById('modal-title').textContent = 'Add Prospect';
             document.getElementById('prospect-form').reset();
+            document.getElementById('prospect-form').dataset.crawledIdx = '';
             document.getElementById('prospect-modal').classList.add('active');
         }
 
@@ -1076,6 +1246,9 @@ ${page.content}</div>
 
                 if (data.success) {
                     closeModal();
+                    if (!editingId) {
+                        showStatus('✅ Prospect added successfully!', 'success');
+                    }
                     await loadProspects();
                 } else {
                     alert('Error saving prospect');
