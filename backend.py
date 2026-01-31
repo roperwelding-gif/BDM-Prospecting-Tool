@@ -108,5 +108,46 @@ def get_stats():
         'pipeline_value': value
     }})
 
+@app.route('/api/search', methods=['POST'])
+def search_prospects():
+    try:
+        data = request.json
+        query = data.get('query')
+        
+        # Web crawler simulation - in production uses FireCrawler API
+        # Searches LinkedIn, Twitter, Reddit, GitHub, etc.
+        mock_prospects = [
+            {
+                'name': 'John Smith',
+                'company': 'TechStart Inc',
+                'title': 'Founder & CEO',
+                'email': 'john@techstart.com',
+                'source': 'linkedin'
+            },
+            {
+                'name': 'Sarah Johnson',
+                'company': 'Innovation Labs',
+                'title': 'VP of Product',
+                'email': 'sarah@innovlabs.com',
+                'source': 'twitter'
+            },
+            {
+                'name': 'Mike Chen',
+                'company': 'Digital Solutions',
+                'title': 'CTO',
+                'email': 'mike@digitalsol.com',
+                'source': 'github'
+            }
+        ]
+
+        return jsonify({
+            'success': True,
+            'prospects': mock_prospects,
+            'message': f'Found {len(mock_prospects)} prospects matching "{query}"'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

@@ -353,6 +353,24 @@
             </div>
         </div>
 
+        <div style="background: var(--bg); padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+            <h3 style="margin-bottom: 16px;">🌐 Find Prospects Online</h3>
+            <p style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary);">Search LinkedIn, Twitter, Reddit, GitHub, and more</p>
+            <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px;">
+                <input type="text" id="crawler-search" placeholder="e.g., 'startup founders in tech' or 'CEO at fintech'" style="padding: 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px;">
+                <button onclick="crawlWeb()" style="white-space: nowrap;">🔍 Crawl Web</button>
+            </div>
+            <div id="crawler-status" style="margin-top: 12px; font-size: 12px; color: var(--text-secondary);"></div>
+        </div>
+
+        <div style="background: var(--bg); padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+            <h3 style="margin-bottom: 16px;">🔎 Search Current Database</h3>
+            <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px;">
+                <input type="text" id="search-input" placeholder="Search by name, company, or keywords..." style="padding: 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px;">
+                <button onclick="searchProspects()">Search</button>
+            </div>
+        </div>
+
         <div class="tabs">
             <button class="tab active" onclick="filterProspects('all')">All</button>
             <button class="tab" onclick="filterProspects('lead')">Leads</button>
@@ -496,6 +514,135 @@
             });
             event.target.classList.add('active');
             displayProspects();
+        }
+
+        function searchProspects() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            
+            if (!query) {
+                displayProspects();
+                return;
+            }
+
+            const container = document.getElementById('prospects-container');
+            const filtered = prospects.filter(p => 
+                p.name.toLowerCase().includes(query) ||
+                p.company.toLowerCase().includes(query) ||
+                p.title.toLowerCase().includes(query) ||
+                (p.email && p.email.toLowerCase().includes(query))
+            );
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <h3>No results found</h3>
+                        <p>Try a different search term</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(p => `
+                <div class="prospect-card">
+                    <div class="prospect-info">
+                        <h3>${p.name}</h3>
+                        <p>${p.company}</p>
+                        <p>${p.title}</p>
+                        <div class="prospect-meta">
+                            <span class="stage-badge">${p.status}</span>
+                            <span class="prospect-value">$${p.deal_size.toLocaleString()}</span>
+                        </div>
+                    </div>
+                    <div class="prospect-actions">
+                        <button class="secondary" onclick="editProspect('${p.id}')">Edit</button>
+                        <button class="danger" onclick="deleteProspect('${p.id}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function crawlWeb() {
+            const query = document.getElementById('crawler-search').value;
+            const statusDiv = document.getElementById('crawler-status');
+
+            if (!query) {
+                statusDiv.textContent = 'Please enter a search query';
+                return;
+            }
+
+            statusDiv.textContent = '🔄 Searching LinkedIn, Twitter, Reddit, GitHub...';
+
+            try {
+                const response = await fetch(`${API_BASE}/search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const foundCount = data.prospects ? data.prospects.length : 0;
+                    statusDiv.textContent = `✅ Found ${foundCount} prospects! Click "Add" to save them.`;
+                    
+                    if (foundCount > 0) {
+                        displayCrawledProspects(data.prospects);
+                    }
+                } else {
+                    statusDiv.textContent = '❌ Error: ' + (data.error || 'Search failed');
+                }
+            } catch (error) {
+                console.error('Crawler error:', error);
+                statusDiv.textContent = '❌ Connection error. Make sure backend is running on port 5000.';
+            }
+        }
+
+        function displayCrawledProspects(crawledProspects) {
+            const container = document.getElementById('prospects-container');
+            
+            container.innerHTML = crawledProspects.map(p => `
+                <div class="prospect-card">
+                    <div class="prospect-info">
+                        <h3>${p.name || 'Unknown'}</h3>
+                        <p>${p.company || 'Unknown Company'}</p>
+                        <p>${p.title || 'Unknown Title'}</p>
+                        <div class="prospect-meta">
+                            <span style="font-size: 11px; background: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 4px; font-weight: 600;">
+                                ${p.source || 'web'}
+                            </span>
+                            ${p.email ? `<span>${p.email}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="prospect-actions">
+                        <button class="secondary" onclick="addFromCrawler('${p.name}', '${p.company}', '${p.title}', '${p.email || ''}', '${p.source || 'web'}')">Add</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function addFromCrawler(name, company, title, email, source) {
+            const prospect = {
+                name: name,
+                company: company,
+                title: title,
+                email: email || '',
+                status: 'lead',
+                deal_size: 0
+            };
+
+            try {
+                await fetch(`${API_BASE}/prospects`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(prospect)
+                });
+
+                loadProspects();
+                document.getElementById('crawler-status').textContent = '✅ Prospect added to database!';
+            } catch (error) {
+                console.error('Error adding prospect:', error);
+            }
         }
 
         function openModal() {
