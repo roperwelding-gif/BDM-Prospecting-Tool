@@ -21,6 +21,7 @@
             --text-secondary: #666;
             --success: #10b981;
             --danger: #ef4444;
+            --warning: #f59e0b;
         }
 
         body {
@@ -79,6 +80,11 @@
             background: var(--primary-hover);
         }
 
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         button.secondary {
             background: var(--bg-secondary);
             color: var(--text);
@@ -125,6 +131,132 @@
             color: var(--text-secondary);
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+
+        .firecrawl-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .firecrawl-section h3 {
+            margin-bottom: 8px;
+            font-size: 20px;
+        }
+
+        .firecrawl-section p {
+            margin-bottom: 16px;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .crawl-options {
+            background: rgba(255,255,255,0.1);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .radio-group input[type="radio"] {
+            cursor: pointer;
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 12px;
+            align-items: end;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .input-group label {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .firecrawl-section input[type="url"],
+        .firecrawl-section input[type="number"] {
+            padding: 12px;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.2);
+            border-radius: 6px;
+            font-size: 14px;
+            color: white;
+            width: 100%;
+        }
+
+        .firecrawl-section input::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .firecrawl-section button {
+            background: white;
+            color: #667eea;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+
+        .firecrawl-section button:hover {
+            background: #f0f0f0;
+        }
+
+        #crawl-limit-group {
+            display: none;
+        }
+
+        .crawl-status {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+            font-size: 13px;
+            display: none;
+        }
+
+        .crawl-status.active {
+            display: block;
+        }
+
+        .search-section {
+            background: var(--bg);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .search-section h3 {
+            margin-bottom: 16px;
+        }
+
+        .search-section input {
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            width: 100%;
         }
 
         .tabs {
@@ -175,13 +307,16 @@
             grid-template-columns: 1fr auto;
             gap: 16px;
             align-items: center;
-            cursor: pointer;
             transition: all 0.2s ease;
         }
 
         .prospect-card:hover {
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             border-color: var(--primary);
+        }
+
+        .prospect-card.crawled {
+            border-left: 4px solid var(--warning);
         }
 
         .prospect-info h3 {
@@ -213,6 +348,7 @@
         .prospect-actions {
             display: flex;
             gap: 8px;
+            flex-wrap: wrap;
         }
 
         .stage-badge {
@@ -225,6 +361,16 @@
             letter-spacing: 0.3px;
             background: var(--bg-secondary);
             color: var(--text);
+        }
+
+        .source-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #e3f2fd;
+            color: #1976d2;
         }
 
         .empty-state {
@@ -321,6 +467,20 @@
             margin-top: 24px;
             justify-content: flex-end;
         }
+
+        @media (max-width: 768px) {
+            .input-row {
+                grid-template-columns: 1fr;
+            }
+
+            .prospect-card {
+                grid-template-columns: 1fr;
+            }
+
+            .prospect-actions {
+                justify-content: flex-start;
+            }
+        }
     </style>
 </head>
 <body>
@@ -353,24 +513,68 @@
             </div>
         </div>
 
-        <div style="background: var(--bg); padding: 20px; border-radius: 8px; margin-bottom: 24px;">
-            <h3 style="margin-bottom: 16px;">🌐 Find Prospects Online</h3>
-            <p style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary);">Search LinkedIn, Twitter, Reddit, GitHub, and more</p>
-            <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px;">
-                <input type="text" id="crawler-search" placeholder="e.g., 'startup founders in tech' or 'CEO at fintech'" style="padding: 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px;">
-                <button onclick="crawlWeb()" style="white-space: nowrap;">🔍 Crawl Web</button>
+        <!-- Firecrawl Integration Section -->
+        <div class="firecrawl-section">
+            <h3>🚀 AI-Powered Prospect Discovery</h3>
+            <p>Use Firecrawl to automatically find prospects from company websites, team pages, and more</p>
+            
+            <div class="crawl-options">
+                <div class="radio-group">
+                    <label>
+                        <input type="radio" name="crawlType" value="scrape" checked>
+                        <span>Scrape Page</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="crawlType" value="crawl">
+                        <span>Crawl Website</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="crawlType" value="map">
+                        <span>Map Structure</span>
+                    </label>
+                </div>
+
+                <div class="input-row">
+                    <div class="input-group">
+                        <label for="crawl-url">Website URL</label>
+                        <input 
+                            type="url" 
+                            id="crawl-url" 
+                            placeholder="https://company.com/team"
+                        />
+                    </div>
+                    
+                    <div class="input-group" id="crawl-limit-group">
+                        <label for="crawl-limit">Pages</label>
+                        <input 
+                            type="number" 
+                            id="crawl-limit" 
+                            value="10" 
+                            min="1" 
+                            max="50"
+                            style="width: 80px;"
+                        />
+                    </div>
+
+                    <button onclick="runFirecrawl()" id="crawl-btn">
+                        🔍 Find Prospects
+                    </button>
+                </div>
             </div>
-            <div id="crawler-status" style="margin-top: 12px; font-size: 12px; color: var(--text-secondary);"></div>
+
+            <div id="crawl-status" class="crawl-status"></div>
         </div>
 
-        <div style="background: var(--bg); padding: 20px; border-radius: 8px; margin-bottom: 24px;">
-            <h3 style="margin-bottom: 16px;">🔎 Search Current Database</h3>
+        <!-- Database Search Section -->
+        <div class="search-section">
+            <h3>🔎 Search Database</h3>
             <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px;">
-                <input type="text" id="search-input" placeholder="Search by name, company, or keywords..." style="padding: 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px;">
+                <input type="text" id="search-input" placeholder="Search by name, company, title, or email..." />
                 <button onclick="searchProspects()">Search</button>
             </div>
         </div>
 
+        <!-- Filter Tabs -->
         <div class="tabs">
             <button class="tab active" onclick="filterProspects('all')">All</button>
             <button class="tab" onclick="filterProspects('lead')">Leads</button>
@@ -381,15 +585,17 @@
             <button class="tab" onclick="filterProspects('lost')">Lost</button>
         </div>
 
+        <!-- Prospects Grid -->
         <div id="prospects-container" class="prospects-grid">
             <div class="empty-state">
                 <div class="empty-state-icon">🎯</div>
                 <h3>No prospects yet</h3>
-                <p>Add your first prospect to get started.</p>
+                <p>Add your first prospect or use Firecrawl to discover new leads</p>
             </div>
         </div>
     </div>
 
+    <!-- Add/Edit Prospect Modal -->
     <div id="prospect-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -398,17 +604,17 @@
 
             <form id="prospect-form">
                 <div class="form-group">
-                    <label for="name">Name</label>
+                    <label for="name">Name *</label>
                     <input type="text" id="name" name="name" required />
                 </div>
 
                 <div class="form-group">
-                    <label for="company">Company</label>
+                    <label for="company">Company *</label>
                     <input type="text" id="company" name="company" required />
                 </div>
 
                 <div class="form-group">
-                    <label for="title">Title</label>
+                    <label for="title">Title *</label>
                     <input type="text" id="title" name="title" required />
                 </div>
 
@@ -434,9 +640,19 @@
                     <input type="number" id="deal-size" name="deal-size" min="0" value="0" />
                 </div>
 
+                <div class="form-group">
+                    <label for="linkedin-url">LinkedIn URL</label>
+                    <input type="url" id="linkedin-url" name="linkedin-url" placeholder="https://linkedin.com/in/..." />
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Notes</label>
+                    <textarea id="notes" name="notes" placeholder="Additional notes..."></textarea>
+                </div>
+
                 <div class="modal-actions">
                     <button type="button" class="secondary" onclick="closeModal()">Cancel</button>
-                    <button type="submit">Save</button>
+                    <button type="submit">Save Prospect</button>
                 </div>
             </form>
         </div>
@@ -448,12 +664,24 @@
         let currentFilter = 'all';
         let editingId = null;
 
+        // Initialize
         async function init() {
             loadProspects();
             document.getElementById('add-prospect-btn').addEventListener('click', openModal);
             document.getElementById('prospect-form').addEventListener('submit', handleFormSubmit);
+            
+            // Setup crawl type radio buttons
+            document.querySelectorAll('input[name="crawlType"]').forEach(radio => {
+                radio.addEventListener('change', handleCrawlTypeChange);
+            });
         }
 
+        function handleCrawlTypeChange(e) {
+            const limitGroup = document.getElementById('crawl-limit-group');
+            limitGroup.style.display = e.target.value === 'crawl' ? 'block' : 'none';
+        }
+
+        // Load prospects from API
         async function loadProspects() {
             try {
                 const response = await fetch(`${API_BASE}/prospects`);
@@ -466,9 +694,11 @@
                 }
             } catch (error) {
                 console.error('Error loading prospects:', error);
+                showStatus('❌ Error connecting to backend. Make sure it\'s running on port 5000.', 'error');
             }
         }
 
+        // Display prospects in grid
         function displayProspects() {
             const container = document.getElementById('prospects-container');
             let filtered = prospects;
@@ -481,22 +711,24 @@
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-state-icon">🎯</div>
-                        <h3>No prospects</h3>
-                        <p>Add your first prospect to get started.</p>
+                        <h3>No prospects found</h3>
+                        <p>${currentFilter === 'all' ? 'Add your first prospect or use Firecrawl to discover new leads' : 'No prospects in this stage'}</p>
                     </div>
                 `;
                 return;
             }
 
             container.innerHTML = filtered.map(p => `
-                <div class="prospect-card">
+                <div class="prospect-card ${p.source ? 'crawled' : ''}">
                     <div class="prospect-info">
                         <h3>${p.name}</h3>
-                        <p>${p.company}</p>
-                        <p>${p.title}</p>
+                        <p><strong>${p.company}</strong> ${p.title ? '• ' + p.title : ''}</p>
+                        ${p.email ? `<p>📧 ${p.email}</p>` : ''}
                         <div class="prospect-meta">
                             <span class="stage-badge">${p.status}</span>
-                            <span class="prospect-value">$${p.deal_size.toLocaleString()}</span>
+                            <span class="prospect-value">$${(p.deal_size || 0).toLocaleString()}</span>
+                            ${p.source ? `<span class="source-badge">🌐 ${p.source}</span>` : ''}
+                            ${p.linkedin_url ? '<span>🔗 LinkedIn</span>' : ''}
                         </div>
                     </div>
                     <div class="prospect-actions">
@@ -507,6 +739,7 @@
             `).join('');
         }
 
+        // Filter prospects by status
         function filterProspects(status) {
             currentFilter = status;
             document.querySelectorAll('.tab').forEach(tab => {
@@ -516,8 +749,9 @@
             displayProspects();
         }
 
+        // Search prospects in database
         function searchProspects() {
-            const query = document.getElementById('search-input').value.toLowerCase();
+            const query = document.getElementById('search-input').value.toLowerCase().trim();
             
             if (!query) {
                 displayProspects();
@@ -526,9 +760,9 @@
 
             const container = document.getElementById('prospects-container');
             const filtered = prospects.filter(p => 
-                p.name.toLowerCase().includes(query) ||
-                p.company.toLowerCase().includes(query) ||
-                p.title.toLowerCase().includes(query) ||
+                (p.name && p.name.toLowerCase().includes(query)) ||
+                (p.company && p.company.toLowerCase().includes(query)) ||
+                (p.title && p.title.toLowerCase().includes(query)) ||
                 (p.email && p.email.toLowerCase().includes(query))
             );
 
@@ -544,14 +778,15 @@
             }
 
             container.innerHTML = filtered.map(p => `
-                <div class="prospect-card">
+                <div class="prospect-card ${p.source ? 'crawled' : ''}">
                     <div class="prospect-info">
                         <h3>${p.name}</h3>
-                        <p>${p.company}</p>
-                        <p>${p.title}</p>
+                        <p><strong>${p.company}</strong> • ${p.title}</p>
+                        ${p.email ? `<p>📧 ${p.email}</p>` : ''}
                         <div class="prospect-meta">
                             <span class="stage-badge">${p.status}</span>
-                            <span class="prospect-value">$${p.deal_size.toLocaleString()}</span>
+                            <span class="prospect-value">$${(p.deal_size || 0).toLocaleString()}</span>
+                            ${p.source ? `<span class="source-badge">🌐 ${p.source}</span>` : ''}
                         </div>
                     </div>
                     <div class="prospect-actions">
@@ -562,89 +797,239 @@
             `).join('');
         }
 
-        async function crawlWeb() {
-            const query = document.getElementById('crawler-search').value;
-            const statusDiv = document.getElementById('crawler-status');
+        // Run Firecrawl
+        async function runFirecrawl() {
+            const url = document.getElementById('crawl-url').value.trim();
+            const type = document.querySelector('input[name="crawlType"]:checked').value;
+            const limit = parseInt(document.getElementById('crawl-limit').value);
 
-            if (!query) {
-                statusDiv.textContent = 'Please enter a search query';
+            if (!url) {
+                showStatus('❌ Please enter a website URL', 'error');
                 return;
             }
 
-            statusDiv.textContent = '🔄 Searching LinkedIn, Twitter, Reddit, GitHub...';
+            // Validate URL
+            try {
+                new URL(url);
+            } catch (e) {
+                showStatus('❌ Please enter a valid URL (include https://)', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('crawl-btn');
+            btn.disabled = true;
+            btn.textContent = '🔄 Processing...';
+            
+            showStatus('🔄 ' + (type === 'scrape' ? 'Scraping page...' : type === 'crawl' ? 'Crawling website...' : 'Mapping website...'), 'loading');
 
             try {
+                const payload = { url, type };
+                if (type === 'crawl') {
+                    payload.limit = limit;
+                }
+
                 const response = await fetch(`${API_BASE}/search`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: query })
+                    body: JSON.stringify(payload)
                 });
 
                 const data = await response.json();
 
                 if (data.success) {
-                    const foundCount = data.prospects ? data.prospects.length : 0;
-                    statusDiv.textContent = `✅ Found ${foundCount} prospects! Click "Add" to save them.`;
-                    
-                    if (foundCount > 0) {
-                        displayCrawledProspects(data.prospects);
+                    if (data.type === 'map') {
+                        // Show URL map
+                        showStatus(`✅ Found ${data.urls.length} URLs on the site`, 'success');
+                        displayUrlMap(data.urls);
+                    } else {
+                        // Show prospects and raw content
+                        const count = data.prospects ? data.prospects.length : 0;
+                        
+                        if (count > 0) {
+                            showStatus(`✅ Found ${count} prospects automatically`, 'success');
+                        } else if (data.has_raw_data) {
+                            showStatus(`⚠️ No prospects auto-detected, but content was scraped. Check the raw data below.`, 'warning');
+                        } else {
+                            showStatus('⚠️ No prospects found. Try a different URL or page.', 'warning');
+                        }
+                        
+                        // Add source URL to data
+                        data.source = url;
+                        displayCrawledProspects(data.prospects || [], data);
                     }
                 } else {
-                    statusDiv.textContent = '❌ Error: ' + (data.error || 'Search failed');
+                    showStatus(`❌ Error: ${data.error}`, 'error');
                 }
             } catch (error) {
-                console.error('Crawler error:', error);
-                statusDiv.textContent = '❌ Connection error. Make sure backend is running on port 5000.';
+                console.error('Firecrawl error:', error);
+                showStatus('❌ Connection error. Make sure backend is running on port 5000.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔍 Find Prospects';
             }
         }
 
-        function displayCrawledProspects(crawledProspects) {
+        // Display crawled prospects
+        function displayCrawledProspects(crawledProspects, rawData = null) {
             const container = document.getElementById('prospects-container');
             
-            container.innerHTML = crawledProspects.map(p => `
-                <div class="prospect-card">
-                    <div class="prospect-info">
-                        <h3>${p.name || 'Unknown'}</h3>
-                        <p>${p.company || 'Unknown Company'}</p>
-                        <p>${p.title || 'Unknown Title'}</p>
-                        <div class="prospect-meta">
-                            <span style="font-size: 11px; background: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 4px; font-weight: 600;">
-                                ${p.source || 'web'}
-                            </span>
-                            ${p.email ? `<span>${p.email}</span>` : ''}
+            let headerContent = '';
+            if (crawledProspects.length === 0 && rawData) {
+                headerContent = `
+                    <div style="background: #fee2e2; padding: 16px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #ef4444;">
+                        <strong>⚠️ No prospects auto-detected</strong>
+                        <p style="font-size: 13px; margin-top: 4px; color: #991b1b;">
+                            The page was scraped successfully, but no prospect patterns were found. 
+                            View the raw content below and add prospects manually.
+                        </p>
+                    </div>
+                `;
+            } else {
+                headerContent = `
+                    <div style="background: #fef3c7; padding: 16px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #f59e0b;">
+                        <strong>🌐 Found ${crawledProspects.length} prospects</strong>
+                        <p style="font-size: 13px; margin-top: 4px; color: #92400e;">Click "Add to Pipeline" to save any prospect to your database</p>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = headerContent;
+            
+            // Show auto-detected prospects
+            if (crawledProspects.length > 0) {
+                container.innerHTML += crawledProspects.map(p => `
+                    <div class="prospect-card crawled">
+                        <div class="prospect-info">
+                            <h3>${p.name || 'Unknown'}</h3>
+                            <p><strong>${p.company || 'Unknown Company'}</strong> ${p.title ? '• ' + p.title : ''}</p>
+                            ${p.email ? `<p>📧 ${p.email}</p>` : ''}
+                            <div class="prospect-meta">
+                                <span class="source-badge">🌐 ${p.source || 'web'}</span>
+                                ${p.linkedin_url ? '<span>🔗 LinkedIn</span>' : ''}
+                            </div>
+                        </div>
+                        <div class="prospect-actions">
+                            <button onclick='addFromFirecrawl(${JSON.stringify(p).replace(/'/g, "\\'")})'>
+                                ➕ Add to Pipeline
+                            </button>
                         </div>
                     </div>
-                    <div class="prospect-actions">
-                        <button class="secondary" onclick="addFromCrawler('${p.name}', '${p.company}', '${p.title}', '${p.email || ''}', '${p.source || 'web'}')">Add</button>
+                `).join('');
+            }
+            
+            // Show raw scraped content
+            if (rawData) {
+                const content = rawData.raw_content || rawData.content;
+                if (content) {
+                    container.innerHTML += `
+                        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-top: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <h3 style="margin: 0;">📄 Scraped Content</h3>
+                                <button class="secondary" onclick="addProspectManually('${rawData.source || ''}')">
+                                    ➕ Add Prospect Manually
+                                </button>
+                            </div>
+                            <div style="max-height: 400px; overflow-y: auto; background: var(--bg-secondary); padding: 16px; border-radius: 6px; font-size: 12px; font-family: monospace; white-space: pre-wrap; line-height: 1.5;">
+${content.substring(0, 5000)}${content.length > 5000 ? '\n\n... (truncated)' : ''}</div>
+                        </div>
+                    `;
+                }
+            }
+            
+            // Show multiple pages if crawled
+            if (rawData && rawData.pages) {
+                rawData.pages.forEach((page, index) => {
+                    container.innerHTML += `
+                        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-top: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <h3 style="margin: 0; font-size: 14px;">📄 Page ${index + 1}: ${page.url}</h3>
+                                <button class="secondary" onclick="addProspectManually('${page.url}')">
+                                    ➕ Add Prospect
+                                </button>
+                            </div>
+                            <div style="max-height: 200px; overflow-y: auto; background: var(--bg-secondary); padding: 12px; border-radius: 6px; font-size: 11px; font-family: monospace; white-space: pre-wrap; line-height: 1.4;">
+${page.content}</div>
+                        </div>
+                    `;
+                });
+            }
+        }
+        
+        // Add prospect manually with source pre-filled
+        window.addProspectManually = function(source) {
+            openModal();
+            if (source) {
+                document.getElementById('notes').value = `Found from: ${source}`;
+            }
+        };
+
+        // Display URL map
+        function displayUrlMap(urls) {
+            const container = document.getElementById('prospects-container');
+            
+            container.innerHTML = `
+                <div style="background: var(--bg); padding: 20px; border-radius: 8px;">
+                    <h3 style="margin-bottom: 12px;">🗺️ Website Structure (${urls.length} pages)</h3>
+                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+                        Copy any URL and use "Scrape Page" mode to extract prospects from that specific page
+                    </p>
+                    <div style="max-height: 400px; overflow-y: auto; background: var(--bg-secondary); padding: 12px; border-radius: 6px; font-size: 12px; font-family: monospace;">
+                        ${urls.map(url => `<div style="padding: 4px 0; border-bottom: 1px solid var(--border);">${url}</div>`).join('')}
                     </div>
                 </div>
-            `).join('');
+            `;
         }
 
-        async function addFromCrawler(name, company, title, email, source) {
+        // Add prospect from Firecrawl
+        async function addFromFirecrawl(prospectData) {
             const prospect = {
-                name: name,
-                company: company,
-                title: title,
-                email: email || '',
+                name: prospectData.name || 'Unknown',
+                company: prospectData.company || 'Unknown',
+                title: prospectData.title || '',
+                email: prospectData.email || '',
                 status: 'lead',
-                deal_size: 0
+                deal_size: 0,
+                source: prospectData.source || '',
+                linkedin_url: prospectData.linkedin_url || '',
+                notes: `Found via Firecrawl from ${prospectData.source || 'web'}`
             };
 
             try {
-                await fetch(`${API_BASE}/prospects`, {
+                const response = await fetch(`${API_BASE}/prospects`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(prospect)
                 });
 
-                loadProspects();
-                document.getElementById('crawler-status').textContent = '✅ Prospect added to database!';
+                const data = await response.json();
+
+                if (data.success) {
+                    showStatus('✅ Prospect added to pipeline!', 'success');
+                    await loadProspects();
+                } else {
+                    showStatus('❌ Failed to add prospect', 'error');
+                }
             } catch (error) {
                 console.error('Error adding prospect:', error);
+                showStatus('❌ Error adding prospect', 'error');
             }
         }
 
+        // Show status message
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('crawl-status');
+            statusDiv.textContent = message;
+            statusDiv.className = 'crawl-status active';
+            
+            // Auto-hide after 5 seconds for success messages
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusDiv.classList.remove('active');
+                }, 5000);
+            }
+        }
+
+        // Modal functions
         function openModal() {
             editingId = null;
             document.getElementById('modal-title').textContent = 'Add Prospect';
@@ -656,6 +1041,7 @@
             document.getElementById('prospect-modal').classList.remove('active');
         }
 
+        // Handle form submit
         async function handleFormSubmit(e) {
             e.preventDefault();
 
@@ -665,64 +1051,87 @@
                 title: document.getElementById('title').value,
                 email: document.getElementById('email').value,
                 status: document.getElementById('status').value,
-                deal_size: parseFloat(document.getElementById('deal-size').value) || 0
+                deal_size: parseFloat(document.getElementById('deal-size').value) || 0,
+                linkedin_url: document.getElementById('linkedin-url').value,
+                notes: document.getElementById('notes').value
             };
 
             try {
+                let response;
                 if (editingId) {
-                    await fetch(`${API_BASE}/prospects/${editingId}`, {
+                    response = await fetch(`${API_BASE}/prospects/${editingId}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(prospect)
                     });
                 } else {
-                    await fetch(`${API_BASE}/prospects`, {
+                    response = await fetch(`${API_BASE}/prospects`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(prospect)
                     });
                 }
 
-                closeModal();
-                loadProspects();
+                const data = await response.json();
+
+                if (data.success) {
+                    closeModal();
+                    await loadProspects();
+                } else {
+                    alert('Error saving prospect');
+                }
             } catch (error) {
                 console.error('Error saving prospect:', error);
+                alert('Error saving prospect');
             }
         }
 
+        // Edit prospect
         async function editProspect(id) {
             const prospect = prospects.find(p => p.id === id);
             if (!prospect) return;
 
             editingId = id;
             document.getElementById('modal-title').textContent = 'Edit Prospect';
-            document.getElementById('name').value = prospect.name;
-            document.getElementById('company').value = prospect.company;
-            document.getElementById('title').value = prospect.title;
+            document.getElementById('name').value = prospect.name || '';
+            document.getElementById('company').value = prospect.company || '';
+            document.getElementById('title').value = prospect.title || '';
             document.getElementById('email').value = prospect.email || '';
-            document.getElementById('status').value = prospect.status;
-            document.getElementById('deal-size').value = prospect.deal_size;
+            document.getElementById('status').value = prospect.status || 'lead';
+            document.getElementById('deal-size').value = prospect.deal_size || 0;
+            document.getElementById('linkedin-url').value = prospect.linkedin_url || '';
+            document.getElementById('notes').value = prospect.notes || '';
             document.getElementById('prospect-modal').classList.add('active');
         }
 
+        // Delete prospect
         async function deleteProspect(id) {
-            if (!confirm('Delete this prospect?')) return;
+            if (!confirm('Are you sure you want to delete this prospect?')) return;
 
             try {
-                await fetch(`${API_BASE}/prospects/${id}`, {
+                const response = await fetch(`${API_BASE}/prospects/${id}`, {
                     method: 'DELETE'
                 });
-                loadProspects();
+
+                const data = await response.json();
+
+                if (data.success) {
+                    await loadProspects();
+                } else {
+                    alert('Error deleting prospect');
+                }
             } catch (error) {
                 console.error('Error deleting prospect:', error);
+                alert('Error deleting prospect');
             }
         }
 
+        // Update stats
         function updateStats() {
             const total = prospects.length;
             const leads = prospects.filter(p => p.status === 'lead').length;
             const won = prospects.filter(p => p.status === 'won').length;
-            const value = prospects.reduce((sum, p) => sum + p.deal_size, 0);
+            const value = prospects.reduce((sum, p) => sum + (p.deal_size || 0), 0);
 
             document.getElementById('total-count').textContent = total;
             document.getElementById('leads-count').textContent = leads;
@@ -730,7 +1139,15 @@
             document.getElementById('won-count').textContent = won;
         }
 
+        // Initialize on load
         window.addEventListener('load', init);
+
+        // Close modal on outside click
+        document.getElementById('prospect-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'prospect-modal') {
+                closeModal();
+            }
+        });
     </script>
 </body>
 </html>
