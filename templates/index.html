@@ -77,8 +77,9 @@
             top: 0; left: 0; right: 0; bottom: 0;
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.02'/%3E%3C/svg%3E");
             pointer-events: none;
-            z-index: 9999;
+            z-index: 299;
             opacity: 0.4;
+            pointer-events: none !important;
         }
 
         /* Matrix canvas sits behind everything */
@@ -172,6 +173,16 @@
 
         .logo-area img:hover {
             filter: brightness(1.4) drop-shadow(0 0 10px var(--green-glow));
+        }
+
+        .logo-text {
+            font-family: var(--font-mono);
+            font-size: 20px;
+            font-weight: 700;
+            color: #00ff41;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.4), 0 0 20px rgba(0, 255, 65, 0.2);
         }
 
         .header-actions {
@@ -308,6 +319,13 @@
         .news-card .news-time {
             font-size: 11px;
             color: var(--text-dim);
+        }
+
+        .news-loading {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-dim);
+            padding: 20px;
         }
 
         /* ─── STATS GRID ──────────────────────────────────────────────── */
@@ -908,7 +926,7 @@
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0, 0, 0, 0.7);
-            z-index: 300;
+            z-index: 10000;
             justify-content: center;
             align-items: center;
             backdrop-filter: blur(5px);
@@ -1311,12 +1329,300 @@
             .stat-number { font-size: 36px; }
             .prospect-info h3 { font-size: 16px; }
         }
+
+        /* ─── FORUM ───────────────────────────────────────────────────── */
+        .forum-section {
+            background: linear-gradient(180deg, rgba(0,255,65,0.02), transparent);
+            border-bottom: 1px solid var(--border);
+            padding: 24px 0;
+            position: relative;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .forum-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .forum-title {
+            font-family: var(--font-mono);
+            font-size: 18px;
+            color: var(--green);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .forum-auth {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .forum-auth .user-greeting {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--green-dim);
+        }
+
+        .auth-form {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .auth-form .form-group {
+            margin-bottom: 10px;
+        }
+
+        .auth-form .form-group label {
+            font-size: 11px;
+            font-family: var(--font-mono);
+            color: var(--text-dim);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .auth-form .form-group input,
+        .auth-form .form-group textarea {
+            width: 100%;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: var(--radius);
+            font-family: var(--font-sans);
+            font-size: 13px;
+        }
+
+        .auth-form .form-group input:focus,
+        .auth-form .form-group textarea:focus {
+            border-color: var(--green-dark);
+            outline: none;
+            box-shadow: 0 0 10px var(--green-glow);
+        }
+
+        .avatar-picker {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .avatar-option {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+            transition: var(--transition);
+            background: var(--bg-primary);
+        }
+
+        .avatar-option:hover {
+            border-color: var(--green-dark);
+            box-shadow: 0 0 10px var(--green-glow);
+        }
+
+        .avatar-option.selected {
+            border-color: var(--green);
+            box-shadow: 0 0 15px var(--green-glow-strong);
+        }
+
+        .forum-post-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            z-index: 1;
+        }
+
+        .forum-post-card:hover {
+            border-color: var(--green-dark);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3), 0 0 10px var(--green-glow);
+            transform: translateY(-2px);
+        }
+
+        .forum-post-card h3 {
+            font-size: 15px;
+            color: var(--text-bright);
+            margin-bottom: 4px;
+        }
+
+        .forum-post-meta {
+            font-size: 11px;
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .forum-post-meta .avatar-small {
+            font-size: 14px;
+        }
+
+        .forum-post-meta .comment-count {
+            color: var(--green-dim);
+        }
+
+        .forum-post-detail {
+            position: relative;
+            z-index: 1;
+        }
+
+        .forum-post-full {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 16px;
+        }
+
+        .forum-post-full h2 {
+            font-size: 18px;
+            color: var(--text-bright);
+            margin-bottom: 8px;
+        }
+
+        .forum-post-full .post-body {
+            color: var(--text);
+            line-height: 1.7;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+
+        .forum-post-full .post-signature {
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+            font-size: 11px;
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
+        .forum-comment {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 18px;
+            margin-bottom: 6px;
+            margin-left: 20px;
+        }
+
+        .forum-comment .comment-header {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .forum-comment .comment-author {
+            font-size: 12px;
+            color: var(--green-dim);
+            font-family: var(--font-mono);
+            font-weight: 600;
+        }
+
+        .forum-comment .comment-time {
+            font-size: 10px;
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+        }
+
+        .forum-comment .comment-body {
+            font-size: 13px;
+            color: var(--text);
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .forum-comment .comment-signature {
+            margin-top: 8px;
+            padding-top: 6px;
+            border-top: 1px solid var(--border);
+            font-size: 10px;
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
+        .forum-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+            font-size: 13px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ─── MESH GRADIENTS ──────────────────────────────────────────── */
+        .mesh-gradient {
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 20% 20%, rgba(0, 255, 65, 0.06) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(0, 200, 50, 0.04) 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(0, 100, 30, 0.03) 0%, transparent 50%);
+            animation: meshMove 15s ease-in-out infinite alternate;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes meshMove {
+            0% { transform: scale(1) translate(0, 0); }
+            33% { transform: scale(1.1) translate(-2%, 1%); }
+            66% { transform: scale(0.95) translate(1%, -2%); }
+            100% { transform: scale(1.05) translate(-1%, 1%); }
+        }
+
+        /* ─── KINETIC TYPOGRAPHY ──────────────────────────────────────── */
+        .kinetic-text {
+            display: inline-block;
+            background: linear-gradient(90deg, var(--green), var(--green-dim), #00ffaa, var(--green));
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 3s linear infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+
+        /* ─── LIQUID CANVAS ───────────────────────────────────────────── */
+        #liquid-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            opacity: 0.08;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
 
 <!-- ═══════════════ MATRIX CANVAS ═══════════════ -->
 <canvas id="matrix-canvas"></canvas>
+<canvas id="liquid-canvas"></canvas>
 
 <!-- ═══════════════ STOCK TICKER ═══════════════ -->
 <div class="stock-ticker" id="stock-ticker">
@@ -1328,6 +1634,7 @@
     <div class="container">
         <div class="logo-area">
             <img src="/logo.jpg" alt="OriginOS" onerror="this.style.display='none'">
+            <span class="logo-text">OriginOS</span>
         </div>
         <div class="header-actions">
             <input type="file" id="csv-import-input" class="csv-input" accept=".csv">
@@ -1338,10 +1645,89 @@
     </div>
 </header>
 
+<!-- ═══════════════ CLOSER'S COFFEE FORUM ═══════════════ -->
+<div class="forum-section" id="forum-section">
+    <div class="container">
+        <div class="mesh-gradient"></div>
+        <div class="forum-header">
+            <h2 class="forum-title kinetic-text">// Closer's Coffee</h2>
+            <div class="forum-auth" id="forum-auth"></div>
+        </div>
+
+        <!-- Auth Forms (hidden by default) -->
+        <div id="forum-login-form" class="auth-form" style="display:none;">
+            <h3 style="color:var(--green);font-family:var(--font-mono);font-size:14px;margin-bottom:12px;">Login</h3>
+            <div class="form-group"><label>Username or Email</label><input type="text" id="auth-login-user" placeholder="username or email" /></div>
+            <div class="form-group"><label>Password</label><input type="password" id="auth-login-pass" placeholder="password" /></div>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+                <button class="primary small" onclick="forumLogin()">Login</button>
+                <button class="secondary small" onclick="hideAuthForms()">Cancel</button>
+            </div>
+            <div id="auth-login-error" style="color:var(--red);font-size:11px;margin-top:6px;"></div>
+        </div>
+
+        <div id="forum-register-form" class="auth-form" style="display:none;">
+            <h3 style="color:var(--green);font-family:var(--font-mono);font-size:14px;margin-bottom:12px;">Create Account</h3>
+            <div class="form-group"><label>Username *</label><input type="text" id="auth-reg-user" placeholder="username (3-30 chars)" /></div>
+            <div class="form-group"><label>Email *</label><input type="email" id="auth-reg-email" placeholder="email@example.com" /></div>
+            <div class="form-group"><label>Password *</label><input type="password" id="auth-reg-pass" placeholder="min 6 characters" /></div>
+            <div class="form-group"><label>Display Name</label><input type="text" id="auth-reg-display" placeholder="optional display name" /></div>
+            <div class="form-group">
+                <label>Avatar</label>
+                <div class="avatar-picker" id="avatar-picker"></div>
+            </div>
+            <div class="form-group"><label>Signature</label><textarea id="auth-reg-sig" placeholder="Your forum signature (max 200 chars)" maxlength="200" rows="2"></textarea></div>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+                <button class="primary small" onclick="forumRegister()">Create Account</button>
+                <button class="secondary small" onclick="hideAuthForms()">Cancel</button>
+            </div>
+            <div id="auth-reg-error" style="color:var(--red);font-size:11px;margin-top:6px;"></div>
+        </div>
+
+        <!-- Profile Editor (hidden by default) -->
+        <div id="forum-profile-editor" class="auth-form" style="display:none;">
+            <h3 style="color:var(--green);font-family:var(--font-mono);font-size:14px;margin-bottom:12px;">Edit Profile</h3>
+            <div class="form-group"><label>Display Name</label><input type="text" id="profile-display-name" /></div>
+            <div class="form-group">
+                <label>Avatar</label>
+                <div class="avatar-picker" id="profile-avatar-picker"></div>
+            </div>
+            <div class="form-group"><label>Signature</label><textarea id="profile-signature" maxlength="200" rows="2"></textarea></div>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+                <button class="primary small" onclick="saveProfile()">Save</button>
+                <button class="secondary small" onclick="hideAuthForms()">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Forum Views -->
+        <div id="forum-post-list"></div>
+        <div id="forum-post-detail" style="display:none;"></div>
+        <div id="forum-create-form" style="display:none;">
+            <div class="auth-form">
+                <h3 style="color:var(--green);font-family:var(--font-mono);font-size:14px;margin-bottom:12px;">New Post</h3>
+                <div class="form-group"><label>Title *</label><input type="text" id="forum-new-title" placeholder="Post title" maxlength="200" /></div>
+                <div class="form-group"><label>Body *</label><textarea id="forum-new-body" placeholder="Write your post..." rows="5"></textarea></div>
+                <div style="display:flex;gap:8px;margin-top:8px;">
+                    <button class="primary small" onclick="submitForumPost()">Post</button>
+                    <button class="secondary small" onclick="showForumList()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ═══════════════ NEWS ═══════════════ -->
 <div class="news-section">
-    <h3>// Financial News</h3>
-    <div class="news-scroll" id="news-scroll"></div>
+    <h3 class="kinetic-text">// Financial News</h3>
+    <div class="news-scroll" id="financial-news-scroll">
+        <div class="news-loading">Loading financial news...</div>
+    </div>
+</div>
+<div class="news-section">
+    <h3 class="kinetic-text">// Top News</h3>
+    <div class="news-scroll" id="top-news-scroll">
+        <div class="news-loading">Loading top news...</div>
+    </div>
 </div>
 
 <!-- ═══════════════ MAIN CONTENT ═══════════════ -->
@@ -1371,15 +1757,15 @@
     </div>
 
     <!-- Firecrawl -->
-    <div class="firecrawl-section reveal">
-        <h3>// AI-Powered Prospect Discovery</h3>
+    <div class="firecrawl-section reveal" style="position:relative;overflow:hidden;">
+        <div class="mesh-gradient"></div>
+        <h3 class="kinetic-text">// AI-Powered Prospect Discovery</h3>
         <p>Firecrawl integration - scrape company websites to auto-detect prospects</p>
 
         <div class="crawl-options">
             <div class="radio-group">
                 <label><input type="radio" name="crawlType" value="scrape" checked> Scrape Page</label>
                 <label><input type="radio" name="crawlType" value="crawl"> Crawl Website</label>
-                <label><input type="radio" name="crawlType" value="map"> Map Structure</label>
             </div>
             <div class="input-row">
                 <div class="input-group">
@@ -1397,8 +1783,9 @@
     </div>
 
     <!-- Tasks Section -->
-    <div class="tasks-global-section reveal" id="tasks-section">
-        <h3>// Tasks & Reminders</h3>
+    <div class="tasks-global-section reveal" id="tasks-section" style="position:relative;overflow:hidden;">
+        <div class="mesh-gradient"></div>
+        <h3 class="kinetic-text">// Tasks & Reminders</h3>
         <div class="add-task-form">
             <div class="input-group">
                 <label>Task</label>
@@ -1657,11 +2044,14 @@
     }
 
     // ─── NEWS ─────────────────────────────────────────────────────────────────
-    const newsData = [
+    const financialNewsFallback = [
         { source: 'Bloomberg', title: 'Federal Reserve Signals Potential Rate Cut in Coming Months', time: '2h ago' },
         { source: 'Reuters', title: 'Tech Sector Leads Market Rally as AI Investments Surge', time: '3h ago' },
         { source: 'CNBC', title: 'S&P 500 Hits New All-Time High on Strong Earnings Reports', time: '4h ago' },
         { source: 'WSJ', title: 'Corporate M&A Activity Reaches Highest Level Since 2021', time: '5h ago' },
+    ];
+
+    const topNewsFallback = [
         { source: 'Financial Times', title: 'Global Supply Chain Recovery Accelerates in Q4', time: '6h ago' },
         { source: 'MarketWatch', title: 'Small-Cap Stocks Outperform Large-Caps for Third Consecutive Week', time: '7h ago' },
         { source: 'Bloomberg', title: 'Venture Capital Funding Returns to Growth After Two-Year Slump', time: '8h ago' },
@@ -1669,8 +2059,42 @@
     ];
 
     function initNews() {
-        const scroll = document.getElementById('news-scroll');
-        scroll.innerHTML = newsData.map(n => `
+        loadNewsCategory('financial', 'financial-news-scroll', financialNewsFallback);
+        loadNewsCategory('general', 'top-news-scroll', topNewsFallback);
+    }
+
+    async function loadNewsCategory(category, containerId, fallbackData) {
+        const scroll = document.getElementById(containerId);
+        try {
+            const res = await fetch(`${API_BASE}/news?category=${category}`);
+            const data = await res.json();
+            if (data.success && data.articles && data.articles.length > 0) {
+                scroll.innerHTML = data.articles.map(n => `
+                    <a href="${esc(n.url)}" target="_blank" rel="noopener" class="news-card" style="text-decoration:none;color:inherit;">
+                        <div class="news-source">${esc(n.source)}</div>
+                        <div class="news-title">${esc(n.title)}</div>
+                        <div class="news-time">${formatNewsTime(n.time)}</div>
+                    </a>
+                `).join('');
+            } else {
+                renderFallbackNews(scroll, fallbackData);
+            }
+        } catch {
+            renderFallbackNews(scroll, fallbackData);
+        }
+    }
+
+    function formatNewsTime(isoString) {
+        if (!isoString) return '';
+        const diff = Date.now() - new Date(isoString).getTime();
+        const hours = Math.floor(diff / 3600000);
+        if (hours < 1) return 'Just now';
+        if (hours < 24) return hours + 'h ago';
+        return Math.floor(hours / 24) + 'd ago';
+    }
+
+    function renderFallbackNews(container, data) {
+        container.innerHTML = data.map(n => `
             <div class="news-card">
                 <div class="news-source">${n.source}</div>
                 <div class="news-title">${n.title}</div>
@@ -1692,11 +2116,389 @@
         document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
     }
 
+    // ─── FORUM & AUTH ─────────────────────────────────────────────────────
+    let currentUser = null;
+    let selectedAvatar = 'avatar-default';
+
+    const AVATAR_EMOJIS = {
+        'avatar-default': '&#128100;',
+        'avatar-hacker': '&#128187;',
+        'avatar-ghost': '&#128123;',
+        'avatar-skull': '&#128128;',
+        'avatar-robot': '&#129302;',
+        'avatar-alien': '&#128125;',
+        'avatar-ninja': '&#129399;',
+        'avatar-wizard': '&#129497;',
+        'avatar-dragon': '&#128009;',
+        'avatar-phoenix': '&#128038;',
+        'avatar-wolf': '&#128058;',
+        'avatar-eagle': '&#129413;'
+    };
+
+    function getAvatarEmoji(avatarId) {
+        return AVATAR_EMOJIS[avatarId] || AVATAR_EMOJIS['avatar-default'];
+    }
+
+    function renderAvatarPicker(containerId, currentAvatar) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = Object.entries(AVATAR_EMOJIS).map(([id, emoji]) =>
+            `<div class="avatar-option ${id === currentAvatar ? 'selected' : ''}" data-avatar="${id}" onclick="selectAvatar('${containerId}', '${id}')">${emoji}</div>`
+        ).join('');
+    }
+
+    function selectAvatar(containerId, avatarId) {
+        selectedAvatar = avatarId;
+        document.querySelectorAll(`#${containerId} .avatar-option`).forEach(el => {
+            el.classList.toggle('selected', el.dataset.avatar === avatarId);
+        });
+    }
+
+    async function checkAuth() {
+        try {
+            const res = await fetch(`${API_BASE}/auth/me`, { credentials: 'same-origin' });
+            const data = await res.json();
+            if (data.success && data.user) {
+                currentUser = data.user;
+                if (!chatUsername) {
+                    chatUsername = currentUser.username;
+                    localStorage.setItem('chat_username', chatUsername);
+                }
+            }
+        } catch {}
+        renderForumAuth();
+        loadForumPosts();
+    }
+
+    function renderForumAuth() {
+        const authDiv = document.getElementById('forum-auth');
+        if (currentUser) {
+            authDiv.innerHTML = `
+                <span class="user-greeting">${getAvatarEmoji(currentUser.avatar)} ${esc(currentUser.display_name || currentUser.username)}</span>
+                <button class="secondary small" onclick="showProfileEditor()">Profile</button>
+                <button class="primary small" onclick="showForumCreateForm()">New Post</button>
+                <button class="secondary small" onclick="forumLogout()">Logout</button>
+            `;
+        } else {
+            authDiv.innerHTML = `
+                <button class="primary small" onclick="showLoginForm()">Login</button>
+                <button class="secondary small" onclick="showRegisterForm()">Register</button>
+            `;
+        }
+    }
+
+    function showLoginForm() {
+        hideAuthForms();
+        document.getElementById('forum-login-form').style.display = 'block';
+    }
+
+    function showRegisterForm() {
+        hideAuthForms();
+        renderAvatarPicker('avatar-picker', 'avatar-default');
+        selectedAvatar = 'avatar-default';
+        document.getElementById('forum-register-form').style.display = 'block';
+    }
+
+    function showProfileEditor() {
+        hideAuthForms();
+        if (currentUser) {
+            document.getElementById('profile-display-name').value = currentUser.display_name || '';
+            document.getElementById('profile-signature').value = currentUser.signature || '';
+            selectedAvatar = currentUser.avatar || 'avatar-default';
+            renderAvatarPicker('profile-avatar-picker', selectedAvatar);
+        }
+        document.getElementById('forum-profile-editor').style.display = 'block';
+    }
+
+    function hideAuthForms() {
+        document.getElementById('forum-login-form').style.display = 'none';
+        document.getElementById('forum-register-form').style.display = 'none';
+        document.getElementById('forum-profile-editor').style.display = 'none';
+        document.getElementById('auth-login-error').textContent = '';
+        document.getElementById('auth-reg-error').textContent = '';
+    }
+
+    async function forumLogin() {
+        const username = document.getElementById('auth-login-user').value.trim();
+        const password = document.getElementById('auth-login-pass').value;
+        if (!username || !password) { document.getElementById('auth-login-error').textContent = 'Fill in all fields'; return; }
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/login`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                credentials: 'same-origin',
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (data.success) {
+                currentUser = data.user;
+                chatUsername = currentUser.username;
+                localStorage.setItem('chat_username', chatUsername);
+                hideAuthForms();
+                renderForumAuth();
+                loadForumPosts();
+            } else {
+                document.getElementById('auth-login-error').textContent = data.error || 'Login failed';
+            }
+        } catch {
+            document.getElementById('auth-login-error').textContent = 'Connection error';
+        }
+    }
+
+    async function forumRegister() {
+        const username = document.getElementById('auth-reg-user').value.trim();
+        const email = document.getElementById('auth-reg-email').value.trim();
+        const password = document.getElementById('auth-reg-pass').value;
+        const display_name = document.getElementById('auth-reg-display').value.trim();
+        const signature = document.getElementById('auth-reg-sig').value.trim();
+
+        if (!username || !email || !password) {
+            document.getElementById('auth-reg-error').textContent = 'Username, email, and password are required';
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/register`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                credentials: 'same-origin',
+                body: JSON.stringify({ username, email, password, display_name, avatar: selectedAvatar, signature })
+            });
+            const data = await res.json();
+            if (data.success) {
+                currentUser = data.user;
+                chatUsername = currentUser.username;
+                localStorage.setItem('chat_username', chatUsername);
+                hideAuthForms();
+                renderForumAuth();
+                loadForumPosts();
+            } else {
+                document.getElementById('auth-reg-error').textContent = data.error || 'Registration failed';
+            }
+        } catch {
+            document.getElementById('auth-reg-error').textContent = 'Connection error';
+        }
+    }
+
+    async function forumLogout() {
+        try {
+            await fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'same-origin' });
+        } catch {}
+        currentUser = null;
+        renderForumAuth();
+        loadForumPosts();
+    }
+
+    async function saveProfile() {
+        const display_name = document.getElementById('profile-display-name').value.trim();
+        const signature = document.getElementById('profile-signature').value.trim();
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/profile`, {
+                method: 'PUT', headers: {'Content-Type':'application/json'},
+                credentials: 'same-origin',
+                body: JSON.stringify({ display_name, avatar: selectedAvatar, signature })
+            });
+            const data = await res.json();
+            if (data.success) {
+                currentUser = data.user;
+                hideAuthForms();
+                renderForumAuth();
+            }
+        } catch {}
+    }
+
+    async function loadForumPosts() {
+        const container = document.getElementById('forum-post-list');
+        try {
+            const res = await fetch(`${API_BASE}/forum/posts`, { credentials: 'same-origin' });
+            const data = await res.json();
+            if (data.success && data.data.length > 0) {
+                container.innerHTML = data.data.map(p => `
+                    <div class="forum-post-card" onclick="viewForumPost(${p.id})">
+                        <h3>${esc(p.title)}</h3>
+                        <div class="forum-post-meta">
+                            <span class="avatar-small">${getAvatarEmoji(p.avatar)}</span>
+                            <span>${esc(p.display_name || p.username)}</span>
+                            <span>${formatForumTime(p.created_at)}</span>
+                            <span class="comment-count">${p.comment_count} comment${p.comment_count !== 1 ? 's' : ''}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = '<div class="forum-empty">No posts yet. Be the first to start a conversation!</div>';
+            }
+        } catch {
+            container.innerHTML = '<div class="forum-empty">Could not load forum posts.</div>';
+        }
+    }
+
+    async function viewForumPost(postId) {
+        document.getElementById('forum-post-list').style.display = 'none';
+        document.getElementById('forum-create-form').style.display = 'none';
+        const detail = document.getElementById('forum-post-detail');
+        detail.style.display = 'block';
+        detail.innerHTML = '<div class="forum-empty">Loading...</div>';
+
+        try {
+            const res = await fetch(`${API_BASE}/forum/posts/${postId}`, { credentials: 'same-origin' });
+            const data = await res.json();
+            if (!data.success) { detail.innerHTML = '<div class="forum-empty">Post not found.</div>'; return; }
+
+            const p = data.post;
+            const comments = data.comments;
+            detail.innerHTML = `
+                <div class="forum-post-detail">
+                    <button class="secondary small" onclick="showForumList()" style="margin-bottom:12px;">&larr; Back to posts</button>
+                    <div class="forum-post-full">
+                        <h2>${esc(p.title)}</h2>
+                        <div class="forum-post-meta" style="margin-bottom:12px;">
+                            <span class="avatar-small">${getAvatarEmoji(p.avatar)}</span>
+                            <span>${esc(p.display_name || p.username)}</span>
+                            <span>${formatForumTime(p.created_at)}</span>
+                        </div>
+                        <div class="post-body">${esc(p.body)}</div>
+                        ${p.signature ? `<div class="post-signature">${esc(p.signature)}</div>` : ''}
+                    </div>
+
+                    <h3 style="font-family:var(--font-mono);font-size:13px;color:var(--green-dim);margin-bottom:12px;">
+                        // Comments (${comments.length})
+                    </h3>
+
+                    ${comments.map(c => `
+                        <div class="forum-comment">
+                            <div class="comment-header">
+                                <span class="avatar-small">${getAvatarEmoji(c.avatar)}</span>
+                                <span class="comment-author">${esc(c.display_name || c.username)}</span>
+                                <span class="comment-time">${formatForumTime(c.created_at)}</span>
+                            </div>
+                            <div class="comment-body">${esc(c.body)}</div>
+                            ${c.signature ? `<div class="comment-signature">${esc(c.signature)}</div>` : ''}
+                        </div>
+                    `).join('')}
+
+                    ${currentUser ? `
+                        <div style="margin-top:16px;margin-left:20px;">
+                            <textarea id="forum-comment-input" placeholder="Write a comment..." rows="3"
+                                style="width:100%;background:var(--bg-primary);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:var(--radius);font-family:var(--font-sans);font-size:13px;"></textarea>
+                            <button class="primary small" onclick="submitForumComment(${postId})" style="margin-top:6px;">Post Comment</button>
+                        </div>
+                    ` : `
+                        <div style="margin-top:16px;margin-left:20px;color:var(--text-dim);font-size:12px;font-family:var(--font-mono);">
+                            <a href="#" onclick="event.preventDefault();showLoginForm()" style="color:var(--green);">Login</a> or
+                            <a href="#" onclick="event.preventDefault();showRegisterForm()" style="color:var(--green);">Register</a> to comment.
+                        </div>
+                    `}
+                </div>
+            `;
+        } catch {
+            detail.innerHTML = '<div class="forum-empty">Error loading post.</div>';
+        }
+    }
+
+    function showForumList() {
+        document.getElementById('forum-post-detail').style.display = 'none';
+        document.getElementById('forum-create-form').style.display = 'none';
+        document.getElementById('forum-post-list').style.display = 'block';
+        loadForumPosts();
+    }
+
+    function showForumCreateForm() {
+        if (!currentUser) { showLoginForm(); return; }
+        document.getElementById('forum-post-list').style.display = 'none';
+        document.getElementById('forum-post-detail').style.display = 'none';
+        document.getElementById('forum-create-form').style.display = 'block';
+        document.getElementById('forum-new-title').value = '';
+        document.getElementById('forum-new-body').value = '';
+    }
+
+    async function submitForumPost() {
+        const title = document.getElementById('forum-new-title').value.trim();
+        const body = document.getElementById('forum-new-body').value.trim();
+        if (!title || !body) return;
+
+        try {
+            const res = await fetch(`${API_BASE}/forum/posts`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                credentials: 'same-origin',
+                body: JSON.stringify({ title, body })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showForumList();
+            }
+        } catch {}
+    }
+
+    async function submitForumComment(postId) {
+        const input = document.getElementById('forum-comment-input');
+        const body = input.value.trim();
+        if (!body) return;
+
+        try {
+            const res = await fetch(`${API_BASE}/forum/posts/${postId}/comments`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                credentials: 'same-origin',
+                body: JSON.stringify({ body })
+            });
+            const data = await res.json();
+            if (data.success) {
+                viewForumPost(postId); // Reload the post
+            }
+        } catch {}
+    }
+
+    function formatForumTime(isoString) {
+        if (!isoString) return '';
+        const diff = Date.now() - new Date(isoString).getTime();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return 'just now';
+        if (mins < 60) return mins + 'm ago';
+        const hours = Math.floor(mins / 60);
+        if (hours < 24) return hours + 'h ago';
+        const days = Math.floor(hours / 24);
+        if (days < 30) return days + 'd ago';
+        return new Date(isoString).toLocaleDateString();
+    }
+
+    // ─── INPUT SANITIZATION ─────────────────────────────────────────────────
+    function sanitizeInput(value) {
+        if (typeof value !== 'string') return value;
+        return value
+            .replace(/[\u200B-\u200D\uFEFF]/g, '')      // Zero-width chars
+            .replace(/\u00A0/g, ' ')                       // Non-breaking spaces
+            .replace(/[\u2000-\u200A]/g, ' ')              // Various Unicode spaces
+            .replace(/\r\n/g, ' ')                         // Windows newlines to space
+            .replace(/[\r\n]/g, ' ')                       // Unix newlines to space
+            .replace(/\s{2,}/g, ' ')                       // Collapse multiple spaces
+            .trim();                                       // Leading/trailing whitespace
+    }
+
+    function initPasteSanitization() {
+        document.addEventListener('paste', (e) => {
+            const target = e.target;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+                setTimeout(() => {
+                    target.value = sanitizeInput(target.value);
+                }, 0);
+            }
+        });
+
+        // Also sanitize on blur for manual typing edge cases
+        document.addEventListener('blur', (e) => {
+            const target = e.target;
+            if ((target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') && target.type !== 'file') {
+                target.value = sanitizeInput(target.value);
+            }
+        }, true);
+    }
+
     // ─── INIT ─────────────────────────────────────────────────────────────────
     async function init() {
         initTicker();
         initNews();
         initScrollReveal();
+        initPasteSanitization();
+        checkAuth();
         loadProspects();
         loadAllTasks();
         initChat();
@@ -1909,7 +2711,7 @@
         const btn = document.getElementById('crawl-btn');
         btn.disabled = true;
         btn.textContent = 'SCANNING...';
-        showStatus(type === 'scrape' ? 'Scraping page...' : type === 'crawl' ? 'Crawling website...' : 'Mapping...', 'loading');
+        showStatus(type === 'scrape' ? 'Scraping page...' : 'Crawling website...', 'loading');
 
         try {
             const payload = { url, type };
@@ -1922,14 +2724,9 @@
             const data = await res.json();
 
             if (data.success) {
-                if (data.type === 'map') {
-                    showStatus(`Found ${data.urls.length} URLs`, 'success');
-                    displayUrlMap(data.urls);
-                } else {
-                    const count = data.prospects ? data.prospects.length : 0;
-                    showStatus(count > 0 ? `Found ${count} prospects - select to add` : 'No prospects detected. Try a different URL.', count > 0 ? 'success' : 'warning');
-                    displayCrawledProspects(data.prospects || [], url);
-                }
+                const count = data.prospects ? data.prospects.length : 0;
+                showStatus(count > 0 ? `Found ${count} prospects - select to add` : 'No prospects detected. Try a different URL.', count > 0 ? 'success' : 'warning');
+                displayCrawledProspects(data.prospects || [], url);
             } else {
                 showStatus(`Error: ${data.error}`, 'error');
             }
@@ -2001,18 +2798,6 @@
         document.getElementById('notes').value = '';
         document.getElementById('prospect-form').dataset.crawledIdx = idx;
         document.getElementById('prospect-modal').classList.add('active');
-    }
-
-    function displayUrlMap(urls) {
-        const container = document.getElementById('prospects-container');
-        container.innerHTML = `
-            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;">
-                <h3 style="font-family:var(--font-mono);font-size:13px;color:var(--green-dim);margin-bottom:12px;">SITE MAP (${urls.length} pages)</h3>
-                <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Copy a URL and use "Scrape Page" mode to extract prospects</p>
-                <div style="max-height:400px;overflow-y:auto;background:var(--bg-primary);padding:12px;border-radius:var(--radius);font-size:11px;font-family:var(--font-mono);">
-                    ${urls.map(u => `<div style="padding:4px 0;border-bottom:1px solid var(--border);color:var(--green-dim);">${esc(u)}</div>`).join('')}
-                </div>
-            </div>`;
     }
 
     function showStatus(msg, type = 'info') {
@@ -2516,8 +3301,88 @@
         if (e.target.id === 'task-modal') closeTaskModal();
     });
 
+    // ─── LIQUID GLSL SHADER ─────────────────────────────────────────────────
+    function initLiquidShader() {
+        const canvas = document.getElementById('liquid-canvas');
+        if (!canvas) return;
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!gl) return; // Graceful fallback if no WebGL
+
+        function resize() {
+            canvas.width = Math.floor(window.innerWidth / 2);
+            canvas.height = Math.floor(window.innerHeight / 2);
+            gl.viewport(0, 0, canvas.width, canvas.height);
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        const vertSrc = `attribute vec2 position; void main() { gl_Position = vec4(position, 0.0, 1.0); }`;
+        const fragSrc = `
+            precision mediump float;
+            uniform float time;
+            uniform vec2 resolution;
+            void main() {
+                vec2 uv = gl_FragCoord.xy / resolution;
+                float wave1 = sin(uv.x * 6.0 + time * 0.5) * 0.1;
+                float wave2 = sin(uv.y * 8.0 + time * 0.3) * 0.08;
+                float wave3 = sin((uv.x + uv.y) * 4.0 + time * 0.7) * 0.06;
+                float wave4 = sin(uv.x * 3.0 - uv.y * 5.0 + time * 0.4) * 0.05;
+                float combined = wave1 + wave2 + wave3 + wave4;
+                vec3 green = vec3(0.0, 1.0, 0.25);
+                gl_FragColor = vec4(green * (0.3 + combined), 0.12 + combined * 0.08);
+            }
+        `;
+
+        function compileShader(src, type) {
+            const s = gl.createShader(type);
+            gl.shaderSource(s, src);
+            gl.compileShader(s);
+            if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+                console.warn('Shader compile error:', gl.getShaderInfoLog(s));
+                gl.deleteShader(s);
+                return null;
+            }
+            return s;
+        }
+
+        const vs = compileShader(vertSrc, gl.VERTEX_SHADER);
+        const fs = compileShader(fragSrc, gl.FRAGMENT_SHADER);
+        if (!vs || !fs) return;
+
+        const prog = gl.createProgram();
+        gl.attachShader(prog, vs);
+        gl.attachShader(prog, fs);
+        gl.linkProgram(prog);
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+        gl.useProgram(prog);
+
+        const posLoc = gl.getAttribLocation(prog, 'position');
+        const timeLoc = gl.getUniformLocation(prog, 'time');
+        const resLoc = gl.getUniformLocation(prog, 'resolution');
+
+        const buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+        gl.enableVertexAttribArray(posLoc);
+        gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+        const startTime = performance.now();
+        function render() {
+            if (gl.isContextLost()) return;
+            const t = (performance.now() - startTime) / 1000;
+            gl.uniform1f(timeLoc, t);
+            gl.uniform2f(resLoc, canvas.width, canvas.height);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            requestAnimationFrame(render);
+        }
+        render();
+    }
+
     // ─── GO ───────────────────────────────────────────────────────────────────
-    window.addEventListener('load', init);
+    window.addEventListener('load', () => {
+        init();
+        initLiquidShader();
+    });
 </script>
 </body>
 </html>
