@@ -1,6 +1,8 @@
-from flask import Flask, request, jsonify, send_from_directory, render_template
+from flask import Flask, request, jsonify, send_from_directory, render_template, session
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit, join_room, leave_room
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 import sqlite3
 import os
 import csv
@@ -12,7 +14,8 @@ from typing import List, Dict, Optional
 from urllib.parse import urljoin, urlparse
 
 app = Flask(__name__)
-CORS(app)
+app.secret_key = os.environ.get('SECRET_KEY', 'originOS-bdm-secret-key-change-in-prod-2024')
+CORS(app, supports_credentials=True)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 DB_FILE = 'prospects.db'
@@ -66,6 +69,38 @@ def init_db():
         timestamp TEXT
     )''')
 
+    c.execute('''CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        display_name TEXT,
+        avatar TEXT DEFAULT 'avatar-default',
+        signature TEXT DEFAULT '',
+        created_at TEXT,
+        last_active TEXT
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS forum_posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at TEXT,
+        updated_at TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS forum_comments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        body TEXT NOT NULL,
+        created_at TEXT,
+        FOREIGN KEY (post_id) REFERENCES forum_posts(id),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )''')
+
     # Migrate existing prospects table if needed (add new columns)
     try:
         c.execute("ALTER TABLE prospects ADD COLUMN warmth_score INTEGER DEFAULT 20")
@@ -88,6 +123,32 @@ def init_db():
     conn.close()
 
 init_db()
+
+# ─── Auth Helpers ─────────────────────────────────────────────────────────────
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': 'Authentication required'}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+def get_current_user():
+    if 'user_id' not in session:
+        return None
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT id, username, email, display_name, avatar, signature FROM users WHERE id = ?', (session['user_id'],))
+    user = c.fetchone()
+    conn.close()
+    return dict(user) if user else None
+
+AVATAR_OPTIONS = [
+    'avatar-default', 'avatar-hacker', 'avatar-ghost', 'avatar-skull',
+    'avatar-robot', 'avatar-alien', 'avatar-ninja', 'avatar-wizard',
+    'avatar-dragon', 'avatar-phoenix', 'avatar-wolf', 'avatar-eagle'
+]
 
 # ─── Firecrawl Client ────────────────────────────────────────────────────────
 
@@ -124,23 +185,34 @@ class FirecrawlClient:
             }
         }
         try:
-            response = requests.post(endpoint, json=payload, headers=self.headers, timeout=60)
+            response = requests.post(endpoint, json=payload, headers=self.headers, timeout=30)
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+
+            # Firecrawl v1 async: POST returns job ID, poll for results
+            if result.get('success') and result.get('id'):
+                job_id = result['id']
+                poll_url = f'{self.base_url}/crawl/{job_id}'
+                import time
+                for attempt in range(30):  # Poll up to 60s
+                    time.sleep(2)
+                    poll_response = requests.get(poll_url, headers=self.headers, timeout=15)
+                    poll_data = poll_response.json()
+                    status = poll_data.get('status', '')
+                    if status == 'completed':
+                        return poll_data
+                    elif status == 'failed':
+                        print(f"Crawl job {job_id} failed")
+                        return None
+                print(f"Crawl job {job_id} timed out after polling")
+                return None
+
+            # If result already has data (non-async response), return it directly
+            return result
         except requests.exceptions.RequestException as e:
             print(f"Error crawling {url}: {str(e)}")
             return None
 
-    def map_website(self, url: str) -> Dict:
-        endpoint = f'{self.base_url}/map'
-        payload = {'url': url}
-        try:
-            response = requests.post(endpoint, json=payload, headers=self.headers, timeout=30)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            print(f"Error mapping {url}: {str(e)}")
-            return None
 
 # ─── Prospect Extraction (FIXED dedup) ───────────────────────────────────────
 
@@ -260,8 +332,33 @@ def extract_prospects_from_content(content: str, source_url: str) -> List[Dict]:
         # Additional check: skip if name contains title keywords as first word
         first_word = name.split()[0]
         title_first_words = ['Chief', 'Vice', 'Senior', 'Junior', 'Lead', 'Principal',
-                             'Director', 'Manager', 'Head', 'General', 'Managing']
+                             'Director', 'Manager', 'Head', 'General', 'Managing',
+                             'Associate', 'Assistant', 'Executive', 'Global', 'Regional',
+                             'National', 'Group', 'Corporate', 'Digital', 'Technical',
+                             'Creative', 'Strategic', 'Operations', 'Marketing', 'Sales',
+                             'Product', 'Engineering', 'Business', 'Account', 'Client']
         if first_word in title_first_words:
+            continue
+
+        # Skip if ANY word in the name is a strong title/role word
+        strong_title_words = {'Director', 'Manager', 'Engineer', 'Developer', 'Designer',
+                              'Architect', 'Consultant', 'Analyst', 'Coordinator', 'Specialist',
+                              'Officer', 'President', 'Controller', 'Administrator', 'Supervisor',
+                              'Strategist', 'Planner', 'Recruiter', 'Advisor'}
+        name_words = set(name.split())
+        if name_words & strong_title_words:
+            continue
+
+        # Skip if ALL words look like business/title vocabulary (not a real name)
+        business_words = {'Chief', 'Vice', 'Senior', 'Junior', 'Lead', 'Principal', 'Director',
+                          'Manager', 'Head', 'General', 'Managing', 'Executive', 'Global',
+                          'Regional', 'Associate', 'Officer', 'President', 'Founder',
+                          'Engineer', 'Developer', 'Designer', 'Architect', 'Consultant'}
+        if all(w in business_words for w in name.split()):
+            continue
+
+        # Skip very short names (likely artifacts)
+        if len(name) < 4:
             continue
 
         context_start = max(0, pos - 400)
@@ -388,7 +485,7 @@ def calculate_warmth_score(prospect: dict) -> int:
 
 @app.route('/logo.jpg')
 def serve_logo():
-    return send_from_directory('.', 'logo.jpg')
+    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), 'logo.jpg')
 
 @app.route('/')
 def serve_index():
@@ -527,15 +624,6 @@ def search_prospects():
                     })
             else:
                 return jsonify({'success': False, 'error': 'Failed to crawl website.'}), 400
-
-        elif search_type == 'map' and url:
-            result = firecrawl.map_website(url)
-            if result and 'data' in result:
-                return jsonify({
-                    'success': True, 'type': 'map',
-                    'urls': result['data'].get('links', []),
-                    'message': f'Found {len(result["data"].get("links", []))} URLs'
-                })
 
         # Final deduplication across all pages
         unique_prospects = []
@@ -851,6 +939,225 @@ def post_chat_message():
     # Broadcast via SocketIO
     socketio.emit('new_message', msg, namespace='/chat')
     return jsonify({'success': True, 'data': msg})
+
+# ─── Auth Endpoints ──────────────────────────────────────────────────────────
+
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    data = request.json
+    username = (data.get('username', '') or '').strip()
+    email = (data.get('email', '') or '').strip().lower()
+    password = data.get('password', '')
+    display_name = (data.get('display_name', '') or username).strip()
+    avatar = data.get('avatar', 'avatar-default')
+    signature = (data.get('signature', '') or '').strip()
+
+    if not username or not email or not password:
+        return jsonify({'success': False, 'error': 'Username, email, and password are required'}), 400
+    if len(password) < 6:
+        return jsonify({'success': False, 'error': 'Password must be at least 6 characters'}), 400
+    if len(username) < 3 or len(username) > 30:
+        return jsonify({'success': False, 'error': 'Username must be 3-30 characters'}), 400
+    if avatar not in AVATAR_OPTIONS:
+        avatar = 'avatar-default'
+    if len(signature) > 200:
+        signature = signature[:200]
+
+    conn = get_db()
+    c = conn.cursor()
+    try:
+        c.execute('''INSERT INTO users (username, email, password_hash, display_name, avatar, signature, created_at, last_active)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+                  (username, email, generate_password_hash(password), display_name, avatar, signature,
+                   datetime.now().isoformat(), datetime.now().isoformat()))
+        conn.commit()
+        user_id = c.lastrowid
+        session['user_id'] = user_id
+        session['username'] = username
+        conn.close()
+        return jsonify({'success': True, 'user': {
+            'id': user_id, 'username': username, 'email': email,
+            'display_name': display_name, 'avatar': avatar, 'signature': signature
+        }})
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Username or email already taken'}), 409
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    data = request.json
+    username = (data.get('username', '') or '').strip()
+    password = data.get('password', '')
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT * FROM users WHERE username = ? OR email = ?', (username, username))
+    user = c.fetchone()
+
+    if user and check_password_hash(user['password_hash'], password):
+        c.execute('UPDATE users SET last_active = ? WHERE id = ?', (datetime.now().isoformat(), user['id']))
+        conn.commit()
+        conn.close()
+        session['user_id'] = user['id']
+        session['username'] = user['username']
+        return jsonify({'success': True, 'user': {
+            'id': user['id'], 'username': user['username'], 'email': user['email'],
+            'display_name': user['display_name'], 'avatar': user['avatar'], 'signature': user['signature']
+        }})
+    conn.close()
+    return jsonify({'success': False, 'error': 'Invalid credentials'}), 401
+
+@app.route('/api/auth/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({'success': True})
+
+@app.route('/api/auth/me', methods=['GET'])
+def get_me():
+    user = get_current_user()
+    if user:
+        return jsonify({'success': True, 'user': user})
+    return jsonify({'success': False, 'user': None})
+
+@app.route('/api/auth/profile', methods=['PUT'])
+@login_required
+def update_profile():
+    data = request.json
+    avatar = data.get('avatar', None)
+    signature = data.get('signature', None)
+    display_name = data.get('display_name', None)
+
+    conn = get_db()
+    c = conn.cursor()
+    if avatar and avatar in AVATAR_OPTIONS:
+        c.execute('UPDATE users SET avatar = ? WHERE id = ?', (avatar, session['user_id']))
+    if signature is not None:
+        c.execute('UPDATE users SET signature = ? WHERE id = ?', (signature[:200], session['user_id']))
+    if display_name:
+        c.execute('UPDATE users SET display_name = ? WHERE id = ?', (display_name.strip()[:50], session['user_id']))
+    conn.commit()
+    conn.close()
+    user = get_current_user()
+    return jsonify({'success': True, 'user': user})
+
+@app.route('/api/auth/avatars', methods=['GET'])
+def get_avatars():
+    return jsonify({'success': True, 'avatars': AVATAR_OPTIONS})
+
+# ─── Forum Endpoints ─────────────────────────────────────────────────────────
+
+@app.route('/api/forum/posts', methods=['GET'])
+def get_forum_posts():
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    offset = (page - 1) * per_page
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT fp.*, u.username, u.display_name, u.avatar,
+                 (SELECT COUNT(*) FROM forum_comments WHERE post_id = fp.id) as comment_count
+                 FROM forum_posts fp
+                 JOIN users u ON fp.user_id = u.id
+                 ORDER BY fp.created_at DESC
+                 LIMIT ? OFFSET ?''', (per_page, offset))
+    posts = [dict(row) for row in c.fetchall()]
+
+    c.execute('SELECT COUNT(*) as total FROM forum_posts')
+    total = c.fetchone()['total']
+    conn.close()
+    return jsonify({'success': True, 'data': posts, 'total': total, 'page': page})
+
+@app.route('/api/forum/posts', methods=['POST'])
+@login_required
+def create_forum_post():
+    data = request.json
+    title = (data.get('title', '') or '').strip()
+    body = (data.get('body', '') or '').strip()
+
+    if not title or not body:
+        return jsonify({'success': False, 'error': 'Title and body are required'}), 400
+    if len(title) > 200:
+        return jsonify({'success': False, 'error': 'Title too long (200 chars max)'}), 400
+
+    conn = get_db()
+    c = conn.cursor()
+    now = datetime.now().isoformat()
+    c.execute('INSERT INTO forum_posts (user_id, title, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+              (session['user_id'], title, body, now, now))
+    conn.commit()
+    post_id = c.lastrowid
+    conn.close()
+    return jsonify({'success': True, 'id': post_id})
+
+@app.route('/api/forum/posts/<int:post_id>', methods=['GET'])
+def get_forum_post(post_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT fp.*, u.username, u.display_name, u.avatar, u.signature
+                 FROM forum_posts fp JOIN users u ON fp.user_id = u.id
+                 WHERE fp.id = ?''', (post_id,))
+    post = c.fetchone()
+    if not post:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Post not found'}), 404
+
+    c.execute('''SELECT fc.*, u.username, u.display_name, u.avatar, u.signature
+                 FROM forum_comments fc JOIN users u ON fc.user_id = u.id
+                 WHERE fc.post_id = ?
+                 ORDER BY fc.created_at ASC''', (post_id,))
+    comments = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({'success': True, 'post': dict(post), 'comments': comments})
+
+@app.route('/api/forum/posts/<int:post_id>/comments', methods=['POST'])
+@login_required
+def create_forum_comment(post_id):
+    data = request.json
+    body = (data.get('body', '') or '').strip()
+
+    if not body:
+        return jsonify({'success': False, 'error': 'Comment body is required'}), 400
+
+    conn = get_db()
+    c = conn.cursor()
+    # Verify post exists
+    c.execute('SELECT id FROM forum_posts WHERE id = ?', (post_id,))
+    if not c.fetchone():
+        conn.close()
+        return jsonify({'success': False, 'error': 'Post not found'}), 404
+
+    c.execute('INSERT INTO forum_comments (post_id, user_id, body, created_at) VALUES (?, ?, ?, ?)',
+              (post_id, session['user_id'], body, datetime.now().isoformat()))
+    conn.commit()
+    comment_id = c.lastrowid
+    conn.close()
+    return jsonify({'success': True, 'id': comment_id})
+
+# ─── News API ────────────────────────────────────────────────────────────────
+
+@app.route('/api/news', methods=['GET'])
+def get_news():
+    category = request.args.get('category', 'business')
+    try:
+        # Use GNews API (free, no key required for basic usage)
+        gnews_category = 'business' if category == 'financial' else 'general'
+        url = f'https://gnews.io/api/v4/top-headlines?category={gnews_category}&lang=en&max=8&apikey=demo'
+        response = requests.get(url, timeout=10)
+        data = response.json()
+        articles = []
+        if 'articles' in data:
+            for article in data.get('articles', []):
+                articles.append({
+                    'source': article.get('source', {}).get('name', 'Unknown'),
+                    'title': article.get('title', ''),
+                    'url': article.get('url', ''),
+                    'time': article.get('publishedAt', ''),
+                    'description': article.get('description', '')
+                })
+        return jsonify({'success': True, 'articles': articles})
+    except Exception as e:
+        # Return empty on failure - frontend has fallback data
+        return jsonify({'success': False, 'error': str(e), 'articles': []})
 
 # ─── SocketIO Events ─────────────────────────────────────────────────────────
 
