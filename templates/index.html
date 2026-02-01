@@ -4,175 +4,423 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OriginOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        /* ═══════════════════════════════════════════════════════════════════
+           HACKER GREEN / BLACK THEME - HIGH CONTRAST 4K READY
+           ═══════════════════════════════════════════════════════════════════ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --primary: #0066cc;
-            --primary-hover: #0052a3;
-            --bg: #ffffff;
-            --bg-secondary: #f5f5f5;
-            --border: #e0e0e0;
-            --text: #1a1a1a;
-            --text-secondary: #666;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --info: #3b82f6;
+            --green: #00ff41;
+            --green-dim: #00cc33;
+            --green-dark: #00991a;
+            --green-glow: rgba(0, 255, 65, 0.15);
+            --green-glow-strong: rgba(0, 255, 65, 0.3);
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #111111;
+            --bg-card: #141414;
+            --bg-elevated: #1a1a1a;
+            --bg-glass: rgba(20, 20, 20, 0.85);
+            --border: #1e1e1e;
+            --border-glow: #003300;
+            --text: #e0e0e0;
+            --text-dim: #888;
+            --text-bright: #ffffff;
+            --red: #ff4444;
+            --red-dim: #cc3333;
+            --yellow: #ffcc00;
+            --yellow-dim: #cc9900;
+            --blue: #00aaff;
+            --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            --font-sans: 'Inter', -apple-system, sans-serif;
+            --radius: 8px;
+            --radius-lg: 12px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
-            background: var(--bg-secondary);
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
             color: var(--text);
             line-height: 1.6;
-            padding: 0;
+            overflow-x: hidden;
+            min-height: 100vh;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+        /* Ambient glow background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 15% 30%, rgba(0, 255, 65, 0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 70%, rgba(0, 255, 65, 0.03) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(0, 80, 20, 0.02) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+            animation: ambientShift 20s ease-in-out infinite alternate;
         }
 
-        header {
-            background: var(--bg);
+        @keyframes ambientShift {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.8; }
+        }
+
+        /* Subtle grain overlay for premium depth */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.02'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.4;
+        }
+
+        /* Matrix canvas sits behind everything */
+        #matrix-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            opacity: 0.06;
+            pointer-events: none;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+        /* ─── STOCK TICKER ─────────────────────────────────────────────── */
+        .stock-ticker {
+            background: linear-gradient(90deg, var(--bg-secondary), var(--bg-card), var(--bg-secondary));
             border-bottom: 1px solid var(--border);
-            padding: 20px 0;
-            margin-bottom: 32px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            overflow: hidden;
+            white-space: nowrap;
+            padding: 8px 0;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            position: relative;
+        }
+
+        .stock-ticker::before,
+        .stock-ticker::after {
+            content: '';
+            position: absolute;
+            top: 0; bottom: 0;
+            width: 60px;
+            z-index: 2;
+        }
+        .stock-ticker::before { left: 0; background: linear-gradient(90deg, var(--bg-secondary), transparent); }
+        .stock-ticker::after { right: 0; background: linear-gradient(90deg, transparent, var(--bg-secondary)); }
+
+        .ticker-track {
+            display: inline-flex;
+            animation: ticker-scroll 40s linear infinite;
+            gap: 40px;
+        }
+
+        .ticker-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 4px;
+        }
+
+        .ticker-symbol { color: var(--text-bright); font-weight: 600; }
+        .ticker-price { color: var(--text-dim); }
+        .ticker-change.up { color: var(--green); }
+        .ticker-change.down { color: var(--red); }
+
+        @keyframes ticker-scroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        /* ─── HEADER ───────────────────────────────────────────────────── */
+        header {
+            background: var(--bg-glass);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border-bottom: 1px solid rgba(0, 255, 65, 0.08);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(0, 255, 65, 0.05);
         }
 
         header .container {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px;
         }
 
-        h1 {
-            font-size: 28px;
-            font-weight: 600;
-            letter-spacing: -0.5px;
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-area img {
+            height: 45px;
+            filter: brightness(1.2) contrast(1.1);
+            transition: var(--transition);
+        }
+
+        .logo-area img:hover {
+            filter: brightness(1.4) drop-shadow(0 0 10px var(--green-glow));
         }
 
         .header-actions {
             display: flex;
-            gap: 10px;
+            gap: 8px;
+            align-items: center;
         }
 
-        button {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            font-size: 14px;
+        /* ─── BUTTONS ──────────────────────────────────────────────────── */
+        button, .btn {
+            font-family: var(--font-sans);
+            font-size: 13px;
             font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        button:hover {
-            background: var(--primary-hover);
-        }
-
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        button.secondary {
-            background: var(--bg-secondary);
-            color: var(--text);
+            padding: 8px 16px;
+            border-radius: var(--radius);
             border: 1px solid var(--border);
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--bg-card);
+            color: var(--text);
+            position: relative;
+            overflow: hidden;
         }
 
-        button.secondary:hover {
-            background: #eee;
+        button:hover { border-color: var(--green-dark); color: var(--green); box-shadow: 0 0 15px var(--green-glow); }
+        button:active { transform: scale(0.97); }
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        button.primary {
+            background: linear-gradient(135deg, var(--green-dark), #006622);
+            color: var(--bg-primary);
+            border: 1px solid var(--green-dim);
+            font-weight: 600;
+        }
+        button.primary:hover {
+            background: linear-gradient(135deg, var(--green-dim), var(--green-dark));
+            box-shadow: 0 0 20px var(--green-glow-strong);
+            color: var(--bg-primary);
         }
 
-        button.danger {
-            background: var(--danger);
+        button.danger { border-color: #330000; color: var(--red); }
+        button.danger:hover { background: rgba(255, 68, 68, 0.1); border-color: var(--red-dim); box-shadow: 0 0 15px rgba(255,68,68,0.15); }
+
+        button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+        button.secondary:hover { border-color: var(--text-dim); color: var(--text); }
+
+        button.small { padding: 4px 10px; font-size: 11px; }
+
+        /* ─── NEWS SECTION ─────────────────────────────────────────────── */
+        .news-section {
+            padding: 20px 0;
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
         }
 
-        button.danger:hover {
-            background: #dc2626;
+        .news-section h3 {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--green-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+            padding: 0 24px;
         }
 
-        button.success {
-            background: var(--success);
+        .news-scroll {
+            display: flex;
+            gap: 16px;
+            overflow-x: auto;
+            padding: 0 24px 12px;
+            scroll-behavior: smooth;
+            scrollbar-width: thin;
+            scrollbar-color: var(--green-dark) var(--bg-secondary);
         }
 
-        button.success:hover {
-            background: #059669;
+        .news-scroll::-webkit-scrollbar { height: 4px; }
+        .news-scroll::-webkit-scrollbar-track { background: var(--bg-secondary); }
+        .news-scroll::-webkit-scrollbar-thumb { background: var(--green-dark); border-radius: 2px; }
+
+        .news-card {
+            min-width: 300px;
+            max-width: 300px;
+            background: linear-gradient(145deg, var(--bg-card), rgba(18,18,18,0.9));
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 18px;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
         }
 
+        .news-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--green-dim), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .news-card:hover {
+            border-color: var(--green-dark);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px var(--green-glow);
+            transform: translateY(-4px);
+        }
+
+        .news-card:hover::before { opacity: 1; }
+
+        .news-card .news-source {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--green-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .news-card .news-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-bright);
+            line-height: 1.4;
+            margin-bottom: 6px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .news-card .news-time {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        /* ─── STATS GRID ──────────────────────────────────────────────── */
         .stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
             gap: 16px;
-            margin-bottom: 32px;
+            margin-bottom: 24px;
         }
 
         .stat-card {
-            background: var(--bg);
+            background: linear-gradient(145deg, var(--bg-card), rgba(20,20,20,0.9));
             border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 20px;
+            border-radius: var(--radius-lg);
+            padding: 24px 20px;
             text-align: center;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
 
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--green), transparent);
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle at center, var(--green-glow) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
+        }
+
+        .stat-card:hover::before { opacity: 1; }
+        .stat-card:hover::after { opacity: 0.3; }
+        .stat-card:hover { border-color: var(--green-dark); box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 20px var(--green-glow); transform: translateY(-2px); }
+
         .stat-number {
-            font-size: 32px;
+            font-family: var(--font-mono);
+            font-size: 28px;
             font-weight: 700;
+            color: var(--green);
             margin-bottom: 4px;
-            color: var(--primary);
         }
 
         .stat-label {
-            font-size: 12px;
-            color: var(--text-secondary);
+            font-size: 11px;
+            color: var(--text-dim);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
+            font-family: var(--font-mono);
         }
 
+        /* ─── FIRECRAWL SECTION ────────────────────────────────────────── */
         .firecrawl-section {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.05), rgba(0, 50, 0, 0.2));
+            border: 1px solid var(--border-glow);
             padding: 24px;
-            border-radius: 12px;
+            border-radius: var(--radius-lg);
             margin-bottom: 24px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .firecrawl-section::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle at center, var(--green-glow) 0%, transparent 60%);
+            opacity: 0.3;
+            pointer-events: none;
         }
 
         .firecrawl-section h3 {
-            margin-bottom: 8px;
-            font-size: 20px;
+            color: var(--green);
+            font-family: var(--font-mono);
+            font-size: 16px;
+            margin-bottom: 6px;
+            position: relative;
         }
 
-        .firecrawl-section p {
+        .firecrawl-section > p {
+            color: var(--text-dim);
+            font-size: 13px;
             margin-bottom: 16px;
-            opacity: 0.9;
-            font-size: 14px;
+            position: relative;
         }
 
         .crawl-options {
-            background: rgba(255,255,255,0.1);
+            background: rgba(0, 0, 0, 0.3);
             padding: 16px;
-            border-radius: 8px;
-            margin-bottom: 16px;
+            border-radius: var(--radius);
+            border: 1px solid rgba(0, 255, 65, 0.05);
+            margin-bottom: 12px;
+            position: relative;
         }
 
         .radio-group {
             display: flex;
             gap: 20px;
-            margin-bottom: 16px;
+            margin-bottom: 14px;
             flex-wrap: wrap;
         }
 
@@ -181,10 +429,13 @@
             align-items: center;
             gap: 6px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
+            color: var(--text);
+            font-family: var(--font-mono);
         }
 
         .radio-group input[type="radio"] {
+            accent-color: var(--green);
             cursor: pointer;
         }
 
@@ -195,1137 +446,2078 @@
             align-items: end;
         }
 
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
+        .input-group { display: flex; flex-direction: column; gap: 4px; }
 
         .input-group label {
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 500;
+            color: var(--green-dim);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .firecrawl-section input[type="url"],
         .firecrawl-section input[type="number"] {
-            padding: 12px;
-            border: 1px solid rgba(255,255,255,0.3);
-            background: rgba(255,255,255,0.2);
-            border-radius: 6px;
-            font-size: 14px;
-            color: white;
+            padding: 10px 14px;
+            border: 1px solid var(--border-glow);
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: var(--radius);
+            font-size: 13px;
+            color: var(--green);
+            font-family: var(--font-mono);
             width: 100%;
+            transition: var(--transition);
         }
 
-        .firecrawl-section input::placeholder {
-            color: rgba(255,255,255,0.7);
+        .firecrawl-section input:focus {
+            outline: none;
+            border-color: var(--green-dim);
+            box-shadow: 0 0 15px var(--green-glow);
         }
 
-        .firecrawl-section button {
-            background: white;
-            color: #667eea;
+        .firecrawl-section input::placeholder { color: rgba(0, 255, 65, 0.3); }
+
+        .firecrawl-section .crawl-btn {
+            background: var(--green-dark);
+            color: var(--bg-primary);
+            border: 1px solid var(--green-dim);
+            font-weight: 700;
+            font-family: var(--font-mono);
             white-space: nowrap;
-            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        .firecrawl-section button:hover {
-            background: #f0f0f0;
+        .firecrawl-section .crawl-btn:hover {
+            background: var(--green-dim);
+            box-shadow: 0 0 25px var(--green-glow-strong);
         }
 
-        #crawl-limit-group {
-            display: none;
-        }
+        #crawl-limit-group { display: none; }
 
         .crawl-status {
             margin-top: 12px;
-            padding: 12px;
-            border-radius: 6px;
-            background: rgba(255,255,255,0.1);
-            font-size: 13px;
+            padding: 10px 14px;
+            border-radius: var(--radius);
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            font-size: 12px;
+            font-family: var(--font-mono);
+            color: var(--green-dim);
             display: none;
+            position: relative;
         }
 
-        .crawl-status.active {
-            display: block;
-        }
+        .crawl-status.active { display: block; animation: fadeIn 0.3s ease; }
 
+        /* ─── SEARCH + FILTERS ─────────────────────────────────────────── */
         .search-section {
-            background: var(--bg);
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 16px 20px;
+            border-radius: var(--radius);
+            margin-bottom: 20px;
         }
 
         .search-section h3 {
-            margin-bottom: 16px;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--green-dim);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .search-section input {
-            padding: 12px;
+            padding: 10px 14px;
             border: 1px solid var(--border);
-            border-radius: 6px;
-            font-size: 14px;
+            background: var(--bg-primary);
+            color: var(--text);
+            border-radius: var(--radius);
+            font-size: 13px;
             width: 100%;
+            transition: var(--transition);
+        }
+
+        .search-section input:focus {
+            outline: none;
+            border-color: var(--green-dark);
+            box-shadow: 0 0 10px var(--green-glow);
         }
 
         .tabs {
             display: flex;
             gap: 0;
             border-bottom: 1px solid var(--border);
-            margin-bottom: 24px;
-            background: var(--bg);
-            border-radius: 8px 8px 0 0;
+            margin-bottom: 20px;
             overflow-x: auto;
+            scrollbar-width: none;
         }
 
+        .tabs::-webkit-scrollbar { display: none; }
+
         .tab {
-            padding: 12px 20px;
-            font-size: 14px;
+            padding: 10px 18px;
+            font-size: 12px;
+            font-family: var(--font-mono);
             border: none;
             background: none;
-            color: var(--text-secondary);
+            color: var(--text-dim);
             cursor: pointer;
             border-bottom: 2px solid transparent;
             white-space: nowrap;
-            transition: all 0.2s ease;
+            transition: var(--transition);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        .tab.active {
-            color: var(--primary);
-            border-bottom-color: var(--primary);
+        .tab.active { color: var(--green); border-bottom-color: var(--green); }
+        .tab:hover { color: var(--text); }
+
+        /* ─── BULK ACTIONS ─────────────────────────────────────────────── */
+        .bulk-actions {
+            background: var(--bg-card);
+            border: 1px solid var(--green-dark);
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            animation: slideDown 0.3s ease;
         }
 
-        .tab:hover {
-            color: var(--text);
+        .bulk-actions.active { display: flex; }
+
+        .bulk-actions-count {
+            font-weight: 600;
+            color: var(--green);
+            font-family: var(--font-mono);
+            flex: 1;
+            font-size: 13px;
         }
 
+        /* ─── PROSPECTS GRID ───────────────────────────────────────────── */
         .prospects-grid {
             display: grid;
-            gap: 12px;
-            background: var(--bg);
-            padding: 20px;
-            border-radius: 8px;
+            gap: 8px;
         }
 
         .prospect-card {
-            background: var(--bg);
+            background: linear-gradient(145deg, var(--bg-card), rgba(18,18,18,0.95));
             border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px;
+            border-radius: var(--radius);
+            padding: 14px 16px;
             display: grid;
-            grid-template-columns: auto 1fr auto;
-            gap: 16px;
+            grid-template-columns: auto auto 1fr auto;
+            gap: 14px;
             align-items: center;
-            transition: all 0.2s ease;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            position: relative;
+            backdrop-filter: blur(5px);
         }
 
-        .prospect-card.selected {
-            background: #f0f7ff;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+        .prospect-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--green), var(--green-dark));
+            border-radius: 3px 0 0 3px;
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .prospect-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: var(--radius);
+            background: linear-gradient(135deg, var(--green-glow) 0%, transparent 50%);
+            opacity: 0;
+            transition: opacity 0.35s ease;
+            pointer-events: none;
         }
 
         .prospect-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            border-color: var(--primary);
+            border-color: var(--green-dark);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 15px var(--green-glow);
+            transform: translateX(4px);
         }
 
-        .prospect-card.crawled {
-            border-left: 4px solid var(--warning);
+        .prospect-card:hover::before { opacity: 1; }
+        .prospect-card:hover::after { opacity: 0.15; }
+
+        .prospect-card.selected {
+            background: rgba(0, 255, 65, 0.03);
+            border-color: var(--green-dark);
         }
+
+        .prospect-card.crawled { border-left: 3px solid var(--yellow-dim); }
+        .prospect-card.crawled::before { display: none; }
 
         .prospect-checkbox {
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             cursor: pointer;
-            accent-color: var(--primary);
+            accent-color: var(--green);
         }
 
-        .prospect-info {
-            flex: 1;
+        /* Warmth Dot */
+        .warmth-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            transition: var(--transition);
         }
+        .warmth-hot { background: var(--green); box-shadow: 0 0 8px var(--green-glow-strong); }
+        .warmth-warm { background: var(--yellow); box-shadow: 0 0 8px rgba(255, 204, 0, 0.3); }
+        .warmth-cold { background: #555; }
 
         .prospect-info h3 {
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 600;
-            margin-bottom: 4px;
+            color: var(--text-bright);
+            margin-bottom: 2px;
         }
 
         .prospect-info p {
-            font-size: 13px;
-            color: var(--text-secondary);
-            margin-bottom: 4px;
+            font-size: 12px;
+            color: var(--text-dim);
         }
 
         .prospect-meta {
             display: flex;
-            gap: 12px;
+            gap: 10px;
             flex-wrap: wrap;
-            font-size: 12px;
-            color: var(--text-secondary);
-            margin-top: 8px;
-        }
-
-        .prospect-value {
-            font-weight: 600;
-            color: var(--success);
-        }
-
-        .prospect-actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
+            font-size: 11px;
+            margin-top: 6px;
+            align-items: center;
         }
 
         .stage-badge {
             display: inline-block;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.3px;
-            background: var(--bg-secondary);
-            color: var(--text);
+            letter-spacing: 0.5px;
+            font-family: var(--font-mono);
+            border: 1px solid;
         }
+
+        .stage-lead { color: var(--green-dim); border-color: var(--green-dark); background: rgba(0, 255, 65, 0.05); }
+        .stage-contacted { color: var(--blue); border-color: #003366; background: rgba(0, 170, 255, 0.05); }
+        .stage-qualified { color: var(--yellow); border-color: #333300; background: rgba(255, 204, 0, 0.05); }
+        .stage-proposal { color: #ff8800; border-color: #332200; background: rgba(255, 136, 0, 0.05); }
+        .stage-won { color: var(--green); border-color: var(--green-dark); background: rgba(0, 255, 65, 0.1); }
+        .stage-lost { color: var(--red); border-color: #330000; background: rgba(255, 68, 68, 0.05); }
 
         .source-badge {
             display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 600;
-            background: #e3f2fd;
-            color: #1976d2;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-family: var(--font-mono);
+            color: var(--text-dim);
+            border: 1px solid var(--border);
         }
+
+        .prospect-value {
+            font-weight: 600;
+            color: var(--green-dim);
+            font-family: var(--font-mono);
+        }
+
+        .prospect-actions {
+            display: flex;
+            gap: 6px;
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .prospect-card:hover .prospect-actions { opacity: 1; }
 
         .empty-state {
             text-align: center;
-            padding: 48px 20px;
-            color: var(--text-secondary);
+            padding: 60px 20px;
+            color: var(--text-dim);
         }
 
         .empty-state-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-            opacity: 0.5;
+            font-size: 40px;
+            margin-bottom: 12px;
+            opacity: 0.3;
         }
 
-        .form-group {
-            margin-bottom: 16px;
+        .empty-state h3 { color: var(--text-dim); font-size: 16px; margin-bottom: 4px; }
+        .empty-state p { font-size: 13px; }
+
+        /* ─── SIDE DRAWER ──────────────────────────────────────────────── */
+        .drawer-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
         }
 
-        label {
-            display: block;
-            font-size: 13px;
+        .drawer-overlay.active { opacity: 1; pointer-events: all; }
+
+        .side-drawer {
+            position: fixed;
+            top: 0; right: -480px; bottom: 0;
+            width: 460px;
+            max-width: 90vw;
+            background: rgba(14, 14, 14, 0.98);
+            backdrop-filter: blur(30px) saturate(180%);
+            -webkit-backdrop-filter: blur(30px) saturate(180%);
+            border-left: 1px solid rgba(0, 255, 65, 0.08);
+            z-index: 201;
+            transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow-y: auto;
+            box-shadow: -20px 0 60px rgba(0, 0, 0, 0.6), 0 0 30px var(--green-glow);
+        }
+
+        .side-drawer.active { right: 0; }
+
+        .drawer-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: var(--bg-secondary);
+            z-index: 1;
+        }
+
+        .drawer-header h2 {
+            font-size: 18px;
+            color: var(--text-bright);
             font-weight: 600;
-            margin-bottom: 6px;
-            color: var(--text);
         }
 
-        input,
-        textarea,
-        select {
-            width: 100%;
-            background: var(--bg);
-            color: var(--text);
+        .drawer-close {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .drawer-close:hover { color: var(--red); background: rgba(255,68,68,0.1); }
+
+        .drawer-body { padding: 20px 24px; }
+
+        .drawer-section {
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .drawer-section:last-child { border-bottom: none; }
+
+        .drawer-section-title {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--green-dim);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 12px;
+        }
+
+        .drawer-detail {
+            display: grid;
+            grid-template-columns: 100px 1fr;
+            gap: 6px 12px;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        .drawer-detail-label { color: var(--text-dim); }
+        .drawer-detail-value { color: var(--text); word-break: break-all; }
+
+        .warmth-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: var(--bg-primary);
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .warmth-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        /* Icebreaker */
+        .icebreaker-card {
+            background: var(--bg-primary);
             border: 1px solid var(--border);
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-family: inherit;
+            border-radius: var(--radius);
+            padding: 14px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--text);
+            margin-top: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .icebreaker-card:hover { border-color: var(--green-dark); }
+
+        /* Tasks in drawer */
+        .task-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
             font-size: 13px;
         }
 
-        textarea {
-            resize: vertical;
-            min-height: 80px;
+        .task-item:last-child { border-bottom: none; }
+
+        .task-checkbox { accent-color: var(--green); cursor: pointer; }
+
+        .task-title { flex: 1; color: var(--text); }
+        .task-title.done { text-decoration: line-through; color: var(--text-dim); }
+
+        .task-due {
+            font-size: 11px;
+            font-family: var(--font-mono);
+            color: var(--text-dim);
         }
 
-        input:focus,
-        textarea:focus,
-        select:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
-        }
+        .task-due.overdue { color: var(--red); }
 
+        /* ─── MODAL ────────────────────────────────────────────────────── */
         .modal {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 300;
             justify-content: center;
             align-items: center;
+            backdrop-filter: blur(5px);
         }
 
-        .modal.active {
-            display: flex;
-        }
+        .modal.active { display: flex; animation: fadeIn 0.2s ease; }
 
         .modal-content {
-            background: var(--bg);
-            border-radius: 12px;
-            padding: 24px;
-            max-width: 500px;
+            background: rgba(17, 17, 17, 0.97);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(0, 255, 65, 0.08);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            max-width: 520px;
             width: 90%;
-            max-height: 90vh;
+            max-height: 85vh;
             overflow-y: auto;
-            box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6), 0 0 40px var(--green-glow);
+            animation: modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .modal-header {
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.95) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .modal-header { margin-bottom: 20px; }
+
+        .modal-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-bright);
+        }
+
+        .modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
+
+        /* ─── FORMS ────────────────────────────────────────────────────── */
+        .form-group { margin-bottom: 14px; }
+
+        .form-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: var(--font-mono);
+        }
+
+        input, textarea, select {
+            width: 100%;
+            background: var(--bg-primary);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            border-radius: var(--radius);
+            font-family: var(--font-sans);
+            font-size: 13px;
+            transition: var(--transition);
+        }
+
+        textarea { resize: vertical; min-height: 70px; }
+
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23888'%3E%3Cpath d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 30px;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--green-dark);
+            box-shadow: 0 0 10px var(--green-glow);
+        }
+
+        /* ─── TASKS SECTION (Global) ───────────────────────────────────── */
+        .tasks-global-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
             margin-bottom: 24px;
         }
 
-        .modal-header h2 {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 8px;
+        .tasks-global-section h3 {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--green-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 14px;
         }
 
-        .modal-actions {
+        .add-task-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto auto;
+            gap: 8px;
+            margin-bottom: 14px;
+            align-items: end;
+        }
+
+        .add-task-form input {
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+
+        .global-task-item {
             display: flex;
+            align-items: center;
             gap: 10px;
-            margin-top: 24px;
-            justify-content: flex-end;
+            padding: 10px 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 6px;
+            transition: var(--transition);
         }
 
-        .bulk-actions {
-            background: var(--bg);
-            padding: 16px 20px;
-            border-radius: 8px;
-            margin-bottom: 16px;
+        .global-task-item:hover { border-color: var(--border-glow); }
+
+        .global-task-prospect {
+            font-size: 10px;
+            font-family: var(--font-mono);
+            color: var(--green-dim);
+            background: rgba(0,255,65,0.05);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        /* ─── CHAT WIDGET ──────────────────────────────────────────────── */
+        .chat-widget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 150;
+        }
+
+        .chat-toggle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--green-dark);
+            border: 2px solid var(--green-dim);
+            color: var(--bg-primary);
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 20px var(--green-glow);
+            transition: var(--transition);
+        }
+
+        .chat-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 30px var(--green-glow-strong);
+        }
+
+        .chat-badge {
+            position: absolute;
+            top: -4px; right: -4px;
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            background: var(--red);
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
             display: none;
             align-items: center;
-            gap: 12px;
-            border: 1px solid var(--border);
+            justify-content: center;
         }
 
-        .bulk-actions.active {
+        .chat-badge.active { display: flex; }
+
+        .chat-window {
+            position: absolute;
+            bottom: 60px;
+            right: 0;
+            width: 380px;
+            max-height: 520px;
+            background: rgba(17, 17, 17, 0.95);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(0, 255, 65, 0.1);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 30px var(--green-glow);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-window.active { display: flex; animation: slideUp 0.3s ease; }
+
+        .chat-header {
+            padding: 14px 16px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
             display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .bulk-actions-count {
-            font-weight: 600;
-            color: var(--primary);
+        .chat-header h4 {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--green);
+        }
+
+        .chat-online {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .chat-online-dot {
+            display: inline-block;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            margin-right: 4px;
+            animation: pulse 2s infinite;
+        }
+
+        .chat-messages {
             flex: 1;
+            overflow-y: auto;
+            padding: 12px 16px;
+            max-height: 320px;
+            min-height: 200px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
         }
 
-        .bulk-actions button {
-            white-space: nowrap;
+        .chat-msg {
+            margin-bottom: 10px;
+            animation: fadeIn 0.3s ease;
         }
 
-        .bulk-actions button.bulk-add {
-            background: var(--success);
+        .chat-msg-header {
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+            margin-bottom: 2px;
         }
 
-        .bulk-actions button.bulk-add:hover {
-            background: #059669;
+        .chat-msg-user {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--green-dim);
+            font-family: var(--font-mono);
         }
 
+        .chat-msg-time {
+            font-size: 10px;
+            color: var(--text-dim);
+        }
+
+        .chat-msg-text {
+            font-size: 13px;
+            color: var(--text);
+            line-height: 1.4;
+            padding-left: 0;
+        }
+
+        .chat-msg.self .chat-msg-user { color: var(--blue); }
+
+        .chat-input-area {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+        }
+
+        .chat-input-area input {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: var(--radius);
+        }
+
+        .chat-input-area input:focus {
+            border-color: var(--green-dark);
+            outline: none;
+        }
+
+        .chat-input-area button {
+            padding: 8px 14px;
+            font-size: 12px;
+            background: var(--green-dark);
+            color: var(--bg-primary);
+            border: 1px solid var(--green-dim);
+            font-weight: 600;
+        }
+
+        /* Username prompt */
+        .chat-username-prompt {
+            padding: 20px 16px;
+            text-align: center;
+        }
+
+        .chat-username-prompt p {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+        }
+
+        .chat-username-prompt input {
+            margin-bottom: 8px;
+            text-align: center;
+            font-family: var(--font-mono);
+        }
+
+        /* ─── ANIMATIONS ───────────────────────────────────────────────── */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 5px var(--green-glow); }
+            50% { box-shadow: 0 0 20px var(--green-glow-strong); }
+        }
+
+        /* Scroll reveal */
+        .reveal {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ─── CSV IMPORT ───────────────────────────────────────────────── */
+        .csv-input { display: none; }
+
+        /* ─── PREMIUM SCROLLBARS ───────────────────────────────────────── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--green-dark); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--green-dim); }
+        * { scrollbar-width: thin; scrollbar-color: var(--green-dark) transparent; }
+
+        /* Selection color */
+        ::selection { background: rgba(0, 255, 65, 0.2); color: var(--text-bright); }
+        ::-moz-selection { background: rgba(0, 255, 65, 0.2); color: var(--text-bright); }
+
+        /* Focus visible for accessibility */
+        :focus-visible {
+            outline: 2px solid var(--green-dim);
+            outline-offset: 2px;
+        }
+
+        /* Smooth page transitions */
+        .container, .news-section {
+            animation: pageLoad 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes pageLoad {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ─── RESPONSIVE ───────────────────────────────────────────────── */
         @media (max-width: 768px) {
-            .input-row {
-                grid-template-columns: 1fr;
-            }
+            .input-row { grid-template-columns: 1fr; }
+            .add-task-form { grid-template-columns: 1fr; }
+            .prospect-card { grid-template-columns: auto auto 1fr; }
+            .prospect-actions { grid-column: 1 / -1; opacity: 1; }
+            .side-drawer { width: 100%; right: -100%; }
+            .chat-window { width: 300px; }
+            .news-card { min-width: 260px; }
+        }
 
-            .prospect-card {
-                grid-template-columns: auto 1fr;
-            }
-
-            .prospect-actions {
-                justify-content: flex-start;
-                grid-column: 2;
-            }
+        @media (min-width: 2000px) {
+            .container { max-width: 1800px; }
+            .stat-number { font-size: 36px; }
+            .prospect-info h3 { font-size: 16px; }
         }
     </style>
 </head>
 <body>
-  <header>
+
+<!-- ═══════════════ MATRIX CANVAS ═══════════════ -->
+<canvas id="matrix-canvas"></canvas>
+
+<!-- ═══════════════ STOCK TICKER ═══════════════ -->
+<div class="stock-ticker" id="stock-ticker">
+    <div class="ticker-track" id="ticker-track"></div>
+</div>
+
+<!-- ═══════════════ HEADER ═══════════════ -->
+<header>
     <div class="container">
-        <h1>
-            <img src="logo.jpg" alt="OriginOS" style="height: 60px; vertical-align: middle;">
-        </h1>
-        
+        <div class="logo-area">
+            <img src="/logo.jpg" alt="OriginOS" onerror="this.style.display='none'">
+        </div>
         <div class="header-actions">
-            <button id="add-prospect-btn">+ Add Prospect</button>
+            <input type="file" id="csv-import-input" class="csv-input" accept=".csv">
+            <button class="secondary small" onclick="document.getElementById('csv-import-input').click()" title="Import CSV">&#8593; Import</button>
+            <button class="secondary small" onclick="exportCSV()" title="Export CSV">&#8595; Export</button>
+            <button class="primary" id="add-prospect-btn">+ Add Prospect</button>
         </div>
     </div>
 </header>
 
-    <div class="container">
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-number" id="total-count">0</div>
-                <div class="stat-label">Total Prospects</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="leads-count">0</div>
-                <div class="stat-label">New Leads</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="pipeline-value">$0</div>
-                <div class="stat-label">Pipeline Value</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="won-count">0</div>
-                <div class="stat-label">Won Deals</div>
-            </div>
+<!-- ═══════════════ NEWS ═══════════════ -->
+<div class="news-section">
+    <h3>// Financial News</h3>
+    <div class="news-scroll" id="news-scroll"></div>
+</div>
+
+<!-- ═══════════════ MAIN CONTENT ═══════════════ -->
+<div class="container">
+    <!-- Stats -->
+    <div class="stats reveal">
+        <div class="stat-card">
+            <div class="stat-number" id="total-count">0</div>
+            <div class="stat-label">Prospects</div>
         </div>
-
-        <!-- Firecrawl Integration Section -->
-        <div class="firecrawl-section">
-            <h3>🚀 AI-Powered Prospect Discovery</h3>
-            <p>Use Firecrawl to automatically find prospects from company websites, team pages, and more</p>
-            
-            <div class="crawl-options">
-                <div class="radio-group">
-                    <label>
-                        <input type="radio" name="crawlType" value="scrape" checked>
-                        <span>Scrape Page</span>
-                    </label>
-                    <label>
-                        <input type="radio" name="crawlType" value="crawl">
-                        <span>Crawl Website</span>
-                    </label>
-                    <label>
-                        <input type="radio" name="crawlType" value="map">
-                        <span>Map Structure</span>
-                    </label>
-                </div>
-
-                <div class="input-row">
-                    <div class="input-group">
-                        <label for="crawl-url">Website URL</label>
-                        <input 
-                            type="url" 
-                            id="crawl-url" 
-                            placeholder="https://company.com/team"
-                        />
-                    </div>
-                    
-                    <div class="input-group" id="crawl-limit-group">
-                        <label for="crawl-limit">Pages</label>
-                        <input 
-                            type="number" 
-                            id="crawl-limit" 
-                            value="10" 
-                            min="1" 
-                            max="50"
-                            style="width: 80px;"
-                        />
-                    </div>
-
-                    <button onclick="runFirecrawl()" id="crawl-btn">
-                        🔍 Find Prospects
-                    </button>
-                </div>
-            </div>
-
-            <div id="crawl-status" class="crawl-status"></div>
+        <div class="stat-card">
+            <div class="stat-number" id="leads-count">0</div>
+            <div class="stat-label">New Leads</div>
         </div>
-
-        <!-- Bulk Actions Bar -->
-        <div id="bulk-actions" class="bulk-actions">
-            <span class="bulk-actions-count"><span id="selected-count">0</span> selected</span>
-            <button class="secondary" onclick="clearSelection()">Clear Selection</button>
-            <button class="bulk-add success" onclick="addSelectedProspects()">✓ Add to Pipeline</button>
+        <div class="stat-card">
+            <div class="stat-number" id="pipeline-value">$0</div>
+            <div class="stat-label">Pipeline</div>
         </div>
-
-        <!-- Database Search Section -->
-        <div class="search-section">
-            <h3>🔎 Search Database</h3>
-            <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px;">
-                <input type="text" id="search-input" placeholder="Search by name, company, title, or email..." />
-                <button onclick="searchProspects()">Search</button>
-            </div>
+        <div class="stat-card">
+            <div class="stat-number" id="won-count">0</div>
+            <div class="stat-label">Won Deals</div>
         </div>
-
-        <!-- Filter Tabs -->
-        <div class="tabs">
-            <button class="tab active" onclick="filterProspects('all')">All</button>
-            <button class="tab" onclick="filterProspects('lead')">Leads</button>
-            <button class="tab" onclick="filterProspects('contacted')">Contacted</button>
-            <button class="tab" onclick="filterProspects('qualified')">Qualified</button>
-            <button class="tab" onclick="filterProspects('proposal')">Proposal</button>
-            <button class="tab" onclick="filterProspects('won')">Won</button>
-            <button class="tab" onclick="filterProspects('lost')">Lost</button>
-        </div>
-
-        <!-- Prospects Grid -->
-        <div id="prospects-container" class="prospects-grid">
-            <div class="empty-state">
-                <div class="empty-state-icon">🎯</div>
-                <h3>No prospects yet</h3>
-                <p>Add your first prospect or use Firecrawl to discover new leads</p>
-            </div>
+        <div class="stat-card">
+            <div class="stat-number" id="tasks-count">0</div>
+            <div class="stat-label">Pending Tasks</div>
         </div>
     </div>
 
-    <!-- Add/Edit Prospect Modal -->
-    <div id="prospect-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modal-title">Add Prospect</h2>
+    <!-- Firecrawl -->
+    <div class="firecrawl-section reveal">
+        <h3>// AI-Powered Prospect Discovery</h3>
+        <p>Firecrawl integration - scrape company websites to auto-detect prospects</p>
+
+        <div class="crawl-options">
+            <div class="radio-group">
+                <label><input type="radio" name="crawlType" value="scrape" checked> Scrape Page</label>
+                <label><input type="radio" name="crawlType" value="crawl"> Crawl Website</label>
+                <label><input type="radio" name="crawlType" value="map"> Map Structure</label>
             </div>
-
-            <form id="prospect-form">
-                <div class="form-group">
-                    <label for="name">Name *</label>
-                    <input type="text" id="name" name="name" required />
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="crawl-url">Target URL</label>
+                    <input type="url" id="crawl-url" placeholder="https://company.com/team" />
                 </div>
-
-                <div class="form-group">
-                    <label for="company">Company *</label>
-                    <input type="text" id="company" name="company" required />
+                <div class="input-group" id="crawl-limit-group">
+                    <label for="crawl-limit">Pages</label>
+                    <input type="number" id="crawl-limit" value="10" min="1" max="50" style="width: 80px;" />
                 </div>
+                <button onclick="runFirecrawl()" id="crawl-btn" class="crawl-btn">SCAN</button>
+            </div>
+        </div>
+        <div id="crawl-status" class="crawl-status"></div>
+    </div>
 
-                <div class="form-group">
-                    <label for="title">Title *</label>
-                    <input type="text" id="title" name="title" required />
-                </div>
+    <!-- Tasks Section -->
+    <div class="tasks-global-section reveal" id="tasks-section">
+        <h3>// Tasks & Reminders</h3>
+        <div class="add-task-form">
+            <div class="input-group">
+                <label>Task</label>
+                <input type="text" id="new-task-title" placeholder="Follow up with..." />
+            </div>
+            <div class="input-group">
+                <label>Due Date</label>
+                <input type="date" id="new-task-date" />
+            </div>
+            <div class="input-group">
+                <label>Prospect</label>
+                <select id="new-task-prospect" style="font-size: 12px;"><option value="">General</option></select>
+            </div>
+            <button class="primary small" onclick="addGlobalTask()">Add</button>
+        </div>
+        <div id="global-tasks-list"></div>
+    </div>
 
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" name="email" />
-                </div>
+    <!-- Bulk Actions Bar -->
+    <div id="bulk-actions" class="bulk-actions">
+        <span class="bulk-actions-count"><span id="selected-count">0</span> selected</span>
+        <button class="secondary small" onclick="clearSelection()">Clear</button>
+        <button class="primary small" onclick="addSelectedProspects()">Add to Pipeline</button>
+    </div>
 
-                <div class="form-group">
-                    <label for="status">Status</label>
-                    <select id="status" name="status">
-                        <option value="lead">Lead</option>
-                        <option value="contacted">Contacted</option>
-                        <option value="qualified">Qualified</option>
-                        <option value="proposal">Proposal</option>
-                        <option value="won">Won</option>
-                        <option value="lost">Lost</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="deal-size">Deal Size ($)</label>
-                    <input type="number" id="deal-size" name="deal-size" min="0" value="0" />
-                </div>
-
-                <div class="form-group">
-                    <label for="linkedin-url">LinkedIn URL</label>
-                    <input type="url" id="linkedin-url" name="linkedin-url" placeholder="https://linkedin.com/in/..." />
-                </div>
-
-                <div class="form-group">
-                    <label for="notes">Notes</label>
-                    <textarea id="notes" name="notes" placeholder="Additional notes..."></textarea>
-                </div>
-
-                <div class="modal-actions">
-                    <button type="button" class="secondary" onclick="closeModal()">Cancel</button>
-                    <button type="submit">Save Prospect</button>
-                </div>
-            </form>
+    <!-- Search -->
+    <div class="search-section reveal">
+        <h3>// Search Database</h3>
+        <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px;">
+            <input type="text" id="search-input" placeholder="Search name, company, title, email..." />
+            <button class="secondary" onclick="searchProspects()">Search</button>
         </div>
     </div>
 
-    <script>
-        const API_BASE = 'https://roperwelding.pythonanywhere.com/api'
-        let prospects = [];
-        let currentFilter = 'all';
-        let editingId = null;
-        let selectedProspectsForBulkAdd = new Set();
-        let crawledProspectsCache = [];
+    <!-- Filter Tabs -->
+    <div class="tabs">
+        <button class="tab active" onclick="filterProspects('all', this)">All</button>
+        <button class="tab" onclick="filterProspects('lead', this)">Leads</button>
+        <button class="tab" onclick="filterProspects('contacted', this)">Contacted</button>
+        <button class="tab" onclick="filterProspects('qualified', this)">Qualified</button>
+        <button class="tab" onclick="filterProspects('proposal', this)">Proposal</button>
+        <button class="tab" onclick="filterProspects('won', this)">Won</button>
+        <button class="tab" onclick="filterProspects('lost', this)">Lost</button>
+    </div>
 
-        // Initialize
-        async function init() {
-            loadProspects();
-            document.getElementById('add-prospect-btn').addEventListener('click', openModal);
-            document.getElementById('prospect-form').addEventListener('submit', handleFormSubmit);
-            
-            // Setup crawl type radio buttons
-            document.querySelectorAll('input[name="crawlType"]').forEach(radio => {
-                radio.addEventListener('change', handleCrawlTypeChange);
-            });
+    <!-- Prospects Grid -->
+    <div id="prospects-container" class="prospects-grid"></div>
+</div>
+
+<!-- ═══════════════ SIDE DRAWER ═══════════════ -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<div class="side-drawer" id="side-drawer">
+    <div class="drawer-header">
+        <h2 id="drawer-prospect-name">Prospect</h2>
+        <button class="drawer-close" onclick="closeDrawer()">&#x2715;</button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+</div>
+
+<!-- ═══════════════ ADD/EDIT MODAL ═══════════════ -->
+<div id="prospect-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modal-title">Add Prospect</h2>
+        </div>
+        <form id="prospect-form">
+            <div class="form-group">
+                <label for="name">Name *</label>
+                <input type="text" id="name" name="name" required />
+            </div>
+            <div class="form-group">
+                <label for="company">Company *</label>
+                <input type="text" id="company" name="company" required />
+            </div>
+            <div class="form-group">
+                <label for="title">Title *</label>
+                <input type="text" id="title" name="title" required />
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" />
+            </div>
+            <div class="form-group">
+                <label for="status">Status</label>
+                <select id="status" name="status">
+                    <option value="lead">Lead</option>
+                    <option value="contacted">Contacted</option>
+                    <option value="qualified">Qualified</option>
+                    <option value="proposal">Proposal</option>
+                    <option value="won">Won</option>
+                    <option value="lost">Lost</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="deal-size">Deal Size ($)</label>
+                <input type="number" id="deal-size" name="deal-size" min="0" value="0" />
+            </div>
+            <div class="form-group">
+                <label for="linkedin-url">LinkedIn URL</label>
+                <input type="url" id="linkedin-url" name="linkedin-url" placeholder="https://linkedin.com/in/..." />
+            </div>
+            <div class="form-group">
+                <label for="source-url">Source URL</label>
+                <input type="url" id="source-url" name="source-url" placeholder="Where you found this prospect" />
+            </div>
+            <div class="form-group">
+                <label for="notes">Notes</label>
+                <textarea id="notes" name="notes" placeholder="Additional notes..."></textarea>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="secondary" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ═══════════════ TASK MODAL ═══════════════ -->
+<div id="task-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Add Task</h2>
+        </div>
+        <form id="task-form" onsubmit="handleTaskFormSubmit(event)">
+            <div class="form-group">
+                <label>Task Title *</label>
+                <input type="text" id="task-title-input" required />
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="task-desc-input" placeholder="Optional details..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Due Date *</label>
+                <input type="date" id="task-date-input" required />
+            </div>
+            <input type="hidden" id="task-prospect-id-input" />
+            <div class="modal-actions">
+                <button type="button" class="secondary" onclick="closeTaskModal()">Cancel</button>
+                <button type="submit" class="primary">Add Task</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ═══════════════ CHAT WIDGET ═══════════════ -->
+<div class="chat-widget" id="chat-widget">
+    <div class="chat-window" id="chat-window">
+        <div class="chat-header">
+            <h4>// LIVE CHAT</h4>
+            <span class="chat-online"><span class="chat-online-dot"></span><span id="chat-online-count">0</span> online</span>
+        </div>
+        <div id="chat-username-setup" class="chat-username-prompt">
+            <p>Choose your username</p>
+            <input type="text" id="chat-username-input" placeholder="Enter username..." maxlength="20" />
+            <button class="primary small" onclick="setChatUsername()" style="width: 100%;">Join Chat</button>
+        </div>
+        <div id="chat-main" style="display: none; flex: 1; flex-direction: column;">
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-msg-input" placeholder="Type a message..." maxlength="500" />
+                <button onclick="sendChatMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+    <div style="position: relative;">
+        <button class="chat-toggle" onclick="toggleChat()">&#9993;</button>
+        <div class="chat-badge" id="chat-badge">0</div>
+    </div>
+</div>
+
+<!-- ═══════════════ JAVASCRIPT ═══════════════ -->
+<script>
+    // ─── MATRIX RAIN BACKGROUND ──────────────────────────────────────────────
+    (function initMatrix() {
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
         }
+        resize();
+        window.addEventListener('resize', resize);
 
-        function handleCrawlTypeChange(e) {
-            const limitGroup = document.getElementById('crawl-limit-group');
-            limitGroup.style.display = e.target.value === 'crawl' ? 'block' : 'none';
-        }
+        const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
+        const fontSize = 14;
+        const columns = Math.floor(canvas.width / fontSize);
+        const drops = Array(columns).fill(1);
 
-        // Extract company name from URL
-        function extractCompanyFromUrl(url) {
-            try {
-                const urlObj = new URL(url);
-                let domain = urlObj.hostname.replace('www.', '');
-                let company = domain.split('.')[0];
-                // Capitalize first letter
-                company = company.charAt(0).toUpperCase() + company.slice(1);
-                return company;
-            } catch (e) {
-                return null;
-            }
-        }
+        function draw() {
+            ctx.fillStyle = 'rgba(10, 10, 10, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#00ff41';
+            ctx.font = fontSize + 'px monospace';
 
-        // Load prospects from API
-        async function loadProspects() {
-            try {
-                const response = await fetch(`${API_BASE}/prospects`);
-                const data = await response.json();
-                
-                if (data.success) {
-                    prospects = data.data;
-                    displayProspects();
-                    updateStats();
+            for (let i = 0; i < drops.length; i++) {
+                const text = chars[Math.floor(Math.random() * chars.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
                 }
-            } catch (error) {
-                console.error('Error loading prospects:', error);
-                showStatus('❌ Error connecting to backend. Please check the service status .', 'error');
+                drops[i]++;
             }
         }
 
-        // Display prospects in grid
-        function displayProspects() {
-            const container = document.getElementById('prospects-container');
-            let filtered = prospects;
+        setInterval(draw, 50);
+    })();
 
-            if (currentFilter !== 'all') {
-                filtered = prospects.filter(p => p.status === currentFilter);
-            }
+    // ─── CONFIG ───────────────────────────────────────────────────────────────
+    const API_BASE = window.location.origin + '/api';
+    let prospects = [];
+    let allTasks = [];
+    let currentFilter = 'all';
+    let editingId = null;
+    let selectedProspectsForBulkAdd = new Set();
+    let crawledProspectsCache = [];
+    let chatUsername = localStorage.getItem('chat_username') || '';
+    let chatSocket = null;
+    let chatOpen = false;
+    let unreadMessages = 0;
 
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">🎯</div>
-                        <h3>No prospects found</h3>
-                        <p>${currentFilter === 'all' ? 'Add your first prospect or use Firecrawl to discover new leads' : 'No prospects in this stage'}</p>
-                    </div>
-                `;
-                return;
-            }
+    // ─── STOCK TICKER ─────────────────────────────────────────────────────────
+    const stockData = [
+        { symbol: 'AAPL', price: 198.45, change: 2.31 },
+        { symbol: 'MSFT', price: 415.20, change: -1.45 },
+        { symbol: 'GOOGL', price: 175.83, change: 3.12 },
+        { symbol: 'AMZN', price: 191.70, change: 0.89 },
+        { symbol: 'NVDA', price: 892.50, change: 15.40 },
+        { symbol: 'META', price: 505.15, change: -2.80 },
+        { symbol: 'TSLA', price: 245.60, change: 8.20 },
+        { symbol: 'BRK.B', price: 408.30, change: 1.10 },
+        { symbol: 'JPM', price: 198.75, change: -0.65 },
+        { symbol: 'V', price: 279.40, change: 1.85 },
+        { symbol: 'SPY', price: 502.30, change: 3.20 },
+        { symbol: 'QQQ', price: 432.80, change: 5.60 },
+        { symbol: 'DIS', price: 112.45, change: -1.20 },
+        { symbol: 'NFLX', price: 628.90, change: 7.35 },
+        { symbol: 'AMD', price: 178.25, change: 4.50 },
+    ];
 
-            container.innerHTML = filtered.map(p => `
-                <div class="prospect-card ${p.source ? 'crawled' : ''} ${selectedProspectsForBulkAdd.has(p.id) ? 'selected' : ''}">
-                    <input type="checkbox" class="prospect-checkbox" ${selectedProspectsForBulkAdd.has(p.id) ? 'checked' : ''} onchange="toggleProspectSelection('${p.id}', this.checked)" />
-                    <div class="prospect-info">
-                        <h3>${p.name}</h3>
-                        <p><strong>${p.company}</strong> ${p.title ? '• ' + p.title : ''}</p>
-                        ${p.email ? `<p>📧 ${p.email}</p>` : ''}
-                        <div class="prospect-meta">
-                            <span class="stage-badge">${p.status}</span>
-                            <span class="prospect-value">$${(p.deal_size || 0).toLocaleString()}</span>
-                            ${p.source ? `<span class="source-badge">🌐 ${extractDomain(p.source)}</span>` : ''}
-                            ${p.linkedin_url ? '<span>🔗 LinkedIn</span>' : ''}
-                        </div>
-                    </div>
-                    <div class="prospect-actions">
-                        <button class="secondary" onclick="editProspect('${p.id}')">Edit</button>
-                        <button class="danger" onclick="deleteProspect('${p.id}')">Delete</button>
-                    </div>
-                </div>
-            `).join('');
+    function initTicker() {
+        const track = document.getElementById('ticker-track');
+        const items = stockData.map(s => {
+            const pctChange = ((s.change / s.price) * 100).toFixed(2);
+            const dir = s.change >= 0 ? 'up' : 'down';
+            const arrow = s.change >= 0 ? '&#9650;' : '&#9660;';
+            return `<span class="ticker-item">
+                <span class="ticker-symbol">${s.symbol}</span>
+                <span class="ticker-price">$${s.price.toFixed(2)}</span>
+                <span class="ticker-change ${dir}">${arrow} ${s.change >= 0 ? '+' : ''}${s.change.toFixed(2)} (${pctChange}%)</span>
+            </span>`;
+        }).join('');
+        track.innerHTML = items + items; // Duplicate for seamless loop
+    }
 
-            updateBulkActionsBar();
-        }
+    // ─── NEWS ─────────────────────────────────────────────────────────────────
+    const newsData = [
+        { source: 'Bloomberg', title: 'Federal Reserve Signals Potential Rate Cut in Coming Months', time: '2h ago' },
+        { source: 'Reuters', title: 'Tech Sector Leads Market Rally as AI Investments Surge', time: '3h ago' },
+        { source: 'CNBC', title: 'S&P 500 Hits New All-Time High on Strong Earnings Reports', time: '4h ago' },
+        { source: 'WSJ', title: 'Corporate M&A Activity Reaches Highest Level Since 2021', time: '5h ago' },
+        { source: 'Financial Times', title: 'Global Supply Chain Recovery Accelerates in Q4', time: '6h ago' },
+        { source: 'MarketWatch', title: 'Small-Cap Stocks Outperform Large-Caps for Third Consecutive Week', time: '7h ago' },
+        { source: 'Bloomberg', title: 'Venture Capital Funding Returns to Growth After Two-Year Slump', time: '8h ago' },
+        { source: 'Reuters', title: 'Energy Sector Transformation: Renewables Investment Surpasses Fossil Fuels', time: '9h ago' },
+    ];
 
-        function extractDomain(url) {
-            try {
-                const urlObj = new URL(url);
-                return urlObj.hostname.replace('www.', '');
-            } catch {
-                return 'web';
-            }
-        }
+    function initNews() {
+        const scroll = document.getElementById('news-scroll');
+        scroll.innerHTML = newsData.map(n => `
+            <div class="news-card">
+                <div class="news-source">${n.source}</div>
+                <div class="news-title">${n.title}</div>
+                <div class="news-time">${n.time}</div>
+            </div>
+        `).join('');
+    }
 
-        // Toggle prospect selection for bulk add
-        function toggleProspectSelection(prospectId, isSelected) {
-            if (isSelected) {
-                selectedProspectsForBulkAdd.add(prospectId);
-            } else {
-                selectedProspectsForBulkAdd.delete(prospectId);
-            }
-            updateBulkActionsBar();
-            displayProspects(); // Re-render to update selected state
-        }
-
-        // Update bulk actions bar visibility and count
-        function updateBulkActionsBar() {
-            const bulkActionsBar = document.getElementById('bulk-actions');
-            const selectedCount = document.getElementById('selected-count');
-            
-            if (selectedProspectsForBulkAdd.size > 0) {
-                bulkActionsBar.classList.add('active');
-                selectedCount.textContent = selectedProspectsForBulkAdd.size;
-            } else {
-                bulkActionsBar.classList.remove('active');
-            }
-        }
-
-        // Clear selection
-        function clearSelection() {
-            selectedProspectsForBulkAdd.clear();
-            updateBulkActionsBar();
-            displayProspects();
-        }
-
-        // Add all selected prospects to database
-        async function addSelectedProspects() {
-            if (selectedProspectsForBulkAdd.size === 0) {
-                showStatus('❌ No prospects selected', 'error');
-                return;
-            }
-
-            const prospectIds = Array.from(selectedProspectsForBulkAdd);
-            let successCount = 0;
-            let failCount = 0;
-
-            for (const prospectId of prospectIds) {
-                const prospect = crawledProspectsCache.find(p => p._temp_id === prospectId);
-                if (!prospect) continue;
-
-                try {
-                    const response = await fetch(`${API_BASE}/prospects`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(prospect)
-                    });
-
-                    if (response.ok) {
-                        successCount++;
-                    } else {
-                        failCount++;
-                    }
-                } catch (error) {
-                    console.error('Error adding prospect:', error);
-                    failCount++;
+    // ─── SCROLL REVEAL ────────────────────────────────────────────────────────
+    function initScrollReveal() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
                 }
-            }
-
-            if (successCount > 0) {
-                showStatus(`✅ Added ${successCount} prospect${successCount !== 1 ? 's' : ''} to pipeline!`, 'success');
-                clearSelection();
-                await loadProspects();
-            }
-
-            if (failCount > 0) {
-                showStatus(`⚠️ Failed to add ${failCount} prospect${failCount !== 1 ? 's' : ''}`, 'warning');
-            }
-        }
-
-        // Filter prospects by status
-        function filterProspects(status) {
-            currentFilter = status;
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
             });
-            event.target.classList.add('active');
-            displayProspects();
-        }
+        }, { threshold: 0.1 });
 
-        // Search prospects in database
-        function searchProspects() {
-            const query = document.getElementById('search-input').value.toLowerCase().trim();
-            
-            if (!query) {
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    }
+
+    // ─── INIT ─────────────────────────────────────────────────────────────────
+    async function init() {
+        initTicker();
+        initNews();
+        initScrollReveal();
+        loadProspects();
+        loadAllTasks();
+        initChat();
+
+        document.getElementById('add-prospect-btn').addEventListener('click', openModal);
+        document.getElementById('prospect-form').addEventListener('submit', handleFormSubmit);
+        document.getElementById('csv-import-input').addEventListener('change', handleCSVImport);
+
+        document.querySelectorAll('input[name="crawlType"]').forEach(radio => {
+            radio.addEventListener('change', handleCrawlTypeChange);
+        });
+
+        document.getElementById('search-input').addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') searchProspects();
+        });
+
+        document.getElementById('chat-msg-input').addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') sendChatMessage();
+        });
+
+        document.getElementById('chat-username-input').addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') setChatUsername();
+        });
+
+        // Animate stat counters
+        setTimeout(() => {
+            document.querySelectorAll('.stat-card').forEach((card, i) => {
+                card.style.animationDelay = `${i * 0.1}s`;
+            });
+        }, 300);
+    }
+
+    function handleCrawlTypeChange(e) {
+        document.getElementById('crawl-limit-group').style.display = e.target.value === 'crawl' ? 'block' : 'none';
+    }
+
+    // ─── LOAD PROSPECTS ───────────────────────────────────────────────────────
+    async function loadProspects() {
+        try {
+            const response = await fetch(`${API_BASE}/prospects`);
+            const data = await response.json();
+            if (data.success) {
+                prospects = data.data;
                 displayProspects();
-                return;
+                updateStats();
+                updateTaskProspectDropdown();
             }
+        } catch (error) {
+            console.error('Error loading prospects:', error);
+        }
+    }
 
-            const container = document.getElementById('prospects-container');
-            const filtered = prospects.filter(p => 
-                (p.name && p.name.toLowerCase().includes(query)) ||
-                (p.company && p.company.toLowerCase().includes(query)) ||
-                (p.title && p.title.toLowerCase().includes(query)) ||
-                (p.email && p.email.toLowerCase().includes(query))
-            );
+    // ─── DISPLAY PROSPECTS ────────────────────────────────────────────────────
+    function displayProspects() {
+        const container = document.getElementById('prospects-container');
+        let filtered = prospects;
+        if (currentFilter !== 'all') {
+            filtered = prospects.filter(p => p.status === currentFilter);
+        }
 
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">🔍</div>
-                        <h3>No results found</h3>
-                        <p>Try a different search term</p>
-                    </div>
-                `;
-                return;
-            }
+        if (filtered.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">&#9678;</div>
+                    <h3>No prospects found</h3>
+                    <p>${currentFilter === 'all' ? 'Add your first prospect or scan a website to discover leads' : 'No prospects in this stage'}</p>
+                </div>`;
+            return;
+        }
 
-            container.innerHTML = filtered.map(p => `
-                <div class="prospect-card ${p.source ? 'crawled' : ''}">
-                    <div style="width: 20px;"></div>
-                    <div class="prospect-info">
-                        <h3>${p.name}</h3>
-                        <p><strong>${p.company}</strong> • ${p.title}</p>
-                        ${p.email ? `<p>📧 ${p.email}</p>` : ''}
-                        <div class="prospect-meta">
-                            <span class="stage-badge">${p.status}</span>
-                            <span class="prospect-value">$${(p.deal_size || 0).toLocaleString()}</span>
-                            ${p.source ? `<span class="source-badge">🌐 ${extractDomain(p.source)}</span>` : ''}
-                        </div>
-                    </div>
-                    <div class="prospect-actions">
-                        <button class="secondary" onclick="editProspect('${p.id}')">Edit</button>
-                        <button class="danger" onclick="deleteProspect('${p.id}')">Delete</button>
+        container.innerHTML = filtered.map(p => {
+            const warmth = p.warmth_score || 0;
+            const warmthClass = warmth >= 70 ? 'warmth-hot' : warmth >= 40 ? 'warmth-warm' : 'warmth-cold';
+            return `
+            <div class="prospect-card ${p.source ? 'crawled' : ''} ${selectedProspectsForBulkAdd.has(p.id) ? 'selected' : ''}" onclick="openDrawer('${p.id}')">
+                <input type="checkbox" class="prospect-checkbox" ${selectedProspectsForBulkAdd.has(p.id) ? 'checked' : ''} onclick="event.stopPropagation()" onchange="toggleProspectSelection('${p.id}', this.checked)" />
+                <div class="warmth-dot ${warmthClass}" title="Warmth: ${warmth}"></div>
+                <div class="prospect-info">
+                    <h3>${esc(p.name)}</h3>
+                    <p><strong>${esc(p.company)}</strong>${p.title ? ' &middot; ' + esc(p.title) : ''}</p>
+                    <div class="prospect-meta">
+                        <span class="stage-badge stage-${p.status}">${p.status}</span>
+                        <span class="prospect-value">$${(p.deal_size || 0).toLocaleString()}</span>
+                        ${p.source ? `<span class="source-badge">${extractDomain(p.source)}</span>` : ''}
+                        ${p.linkedin_url ? '<span style="color:var(--blue);">in</span>' : ''}
                     </div>
                 </div>
-            `).join('');
-        }
+                <div class="prospect-actions" onclick="event.stopPropagation()">
+                    <button class="secondary small" onclick="editProspect('${p.id}')">Edit</button>
+                    <button class="danger small" onclick="deleteProspect('${p.id}')">Del</button>
+                </div>
+            </div>`;
+        }).join('');
+        updateBulkActionsBar();
+    }
 
-        // Run Firecrawl
-        async function runFirecrawl() {
-            const url = document.getElementById('crawl-url').value.trim();
-            const type = document.querySelector('input[name="crawlType"]:checked').value;
-            const limit = parseInt(document.getElementById('crawl-limit').value);
+    function esc(s) {
+        if (!s) return '';
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
 
-            if (!url) {
-                showStatus('❌ Please enter a website URL', 'error');
-                return;
-            }
+    function extractDomain(url) {
+        try { return new URL(url).hostname.replace('www.', ''); }
+        catch { return 'web'; }
+    }
 
+    function extractCompanyFromUrl(url) {
+        try {
+            let d = new URL(url).hostname.replace('www.','').split('.')[0];
+            return d.charAt(0).toUpperCase() + d.slice(1);
+        } catch { return null; }
+    }
+
+    // ─── SELECTION ────────────────────────────────────────────────────────────
+    function toggleProspectSelection(id, checked) {
+        if (checked) selectedProspectsForBulkAdd.add(id);
+        else selectedProspectsForBulkAdd.delete(id);
+        updateBulkActionsBar();
+        displayProspects();
+    }
+
+    function updateBulkActionsBar() {
+        const bar = document.getElementById('bulk-actions');
+        document.getElementById('selected-count').textContent = selectedProspectsForBulkAdd.size;
+        bar.classList.toggle('active', selectedProspectsForBulkAdd.size > 0);
+    }
+
+    function clearSelection() {
+        selectedProspectsForBulkAdd.clear();
+        updateBulkActionsBar();
+        displayProspects();
+    }
+
+    async function addSelectedProspects() {
+        if (selectedProspectsForBulkAdd.size === 0) return;
+        const ids = Array.from(selectedProspectsForBulkAdd);
+        let ok = 0;
+        for (const id of ids) {
+            const p = crawledProspectsCache.find(x => x._temp_id === id);
+            if (!p) continue;
             try {
-                new URL(url);
-            } catch (e) {
-                showStatus('❌ Please enter a valid URL (include https://)', 'error');
-                return;
-            }
-
-            const btn = document.getElementById('crawl-btn');
-            btn.disabled = true;
-            btn.textContent = '🔄 Processing...';
-            
-            showStatus('🔄 ' + (type === 'scrape' ? 'Scraping page...' : type === 'crawl' ? 'Crawling website...' : 'Mapping website...'), 'loading');
-
-            try {
-                const payload = { url, type };
-                if (type === 'crawl') {
-                    payload.limit = limit;
-                }
-
-                const response = await fetch(`${API_BASE}/search`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                const res = await fetch(`${API_BASE}/prospects`, {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify(p)
                 });
+                if (res.ok) ok++;
+            } catch {}
+        }
+        if (ok > 0) {
+            showStatus(`Added ${ok} prospect${ok !== 1 ? 's' : ''} to pipeline`, 'success');
+            clearSelection();
+            await loadProspects();
+        }
+    }
 
-                const data = await response.json();
+    // ─── FILTER / SEARCH ──────────────────────────────────────────────────────
+    function filterProspects(status, el) {
+        currentFilter = status;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        if (el) el.classList.add('active');
+        displayProspects();
+    }
 
-                if (data.success) {
-                    if (data.type === 'map') {
-                        showStatus(`✅ Found ${data.urls.length} URLs on the site`, 'success');
-                        displayUrlMap(data.urls);
-                    } else {
-                        const count = data.prospects ? data.prospects.length : 0;
-                        
-                        if (count > 0) {
-                            showStatus(`✅ Found ${count} prospects - select and add them below!`, 'success');
-                        } else {
-                            showStatus(`⚠️ No prospects auto-detected. Try a different URL.`, 'warning');
-                        }
-                        
-                        displayCrawledProspects(data.prospects || [], data, url);
-                    }
+    function searchProspects() {
+        const q = document.getElementById('search-input').value.toLowerCase().trim();
+        if (!q) { displayProspects(); return; }
+        const container = document.getElementById('prospects-container');
+        const filtered = prospects.filter(p =>
+            (p.name && p.name.toLowerCase().includes(q)) ||
+            (p.company && p.company.toLowerCase().includes(q)) ||
+            (p.title && p.title.toLowerCase().includes(q)) ||
+            (p.email && p.email.toLowerCase().includes(q))
+        );
+        if (!filtered.length) {
+            container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#8709;</div><h3>No results</h3><p>Try different search terms</p></div>`;
+            return;
+        }
+        container.innerHTML = filtered.map(p => {
+            const warmth = p.warmth_score || 0;
+            const wc = warmth >= 70 ? 'warmth-hot' : warmth >= 40 ? 'warmth-warm' : 'warmth-cold';
+            return `
+            <div class="prospect-card ${p.source?'crawled':''}" onclick="openDrawer('${p.id}')">
+                <div style="width:16px"></div>
+                <div class="warmth-dot ${wc}"></div>
+                <div class="prospect-info">
+                    <h3>${esc(p.name)}</h3>
+                    <p><strong>${esc(p.company)}</strong>${p.title?' &middot; '+esc(p.title):''}</p>
+                    <div class="prospect-meta">
+                        <span class="stage-badge stage-${p.status}">${p.status}</span>
+                        <span class="prospect-value">$${(p.deal_size||0).toLocaleString()}</span>
+                    </div>
+                </div>
+                <div class="prospect-actions" onclick="event.stopPropagation()">
+                    <button class="secondary small" onclick="editProspect('${p.id}')">Edit</button>
+                    <button class="danger small" onclick="deleteProspect('${p.id}')">Del</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // ─── FIRECRAWL ────────────────────────────────────────────────────────────
+    async function runFirecrawl() {
+        const url = document.getElementById('crawl-url').value.trim();
+        const type = document.querySelector('input[name="crawlType"]:checked').value;
+        const limit = parseInt(document.getElementById('crawl-limit').value);
+
+        if (!url) { showStatus('Enter a URL', 'error'); return; }
+        try { new URL(url); } catch { showStatus('Invalid URL (include https://)', 'error'); return; }
+
+        const btn = document.getElementById('crawl-btn');
+        btn.disabled = true;
+        btn.textContent = 'SCANNING...';
+        showStatus(type === 'scrape' ? 'Scraping page...' : type === 'crawl' ? 'Crawling website...' : 'Mapping...', 'loading');
+
+        try {
+            const payload = { url, type };
+            if (type === 'crawl') payload.limit = limit;
+
+            const res = await fetch(`${API_BASE}/search`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                if (data.type === 'map') {
+                    showStatus(`Found ${data.urls.length} URLs`, 'success');
+                    displayUrlMap(data.urls);
                 } else {
-                    showStatus(`❌ Error: ${data.error}`, 'error');
+                    const count = data.prospects ? data.prospects.length : 0;
+                    showStatus(count > 0 ? `Found ${count} prospects - select to add` : 'No prospects detected. Try a different URL.', count > 0 ? 'success' : 'warning');
+                    displayCrawledProspects(data.prospects || [], url);
                 }
-            } catch (error) {
-                console.error('Firecrawl error:', error);
-                showStatus('❌ Connection error. Make sure backend is running on port 5000.', 'error');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = '🔍 Find Prospects';
+            } else {
+                showStatus(`Error: ${data.error}`, 'error');
             }
+        } catch (error) {
+            showStatus('Connection error. Check backend.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'SCAN';
+        }
+    }
+
+    function displayCrawledProspects(crawledProspects, sourceUrl) {
+        const container = document.getElementById('prospects-container');
+        crawledProspectsCache = [];
+        selectedProspectsForBulkAdd.clear();
+
+        if (!crawledProspects.length) {
+            container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#8709;</div><h3>No prospects detected</h3><p>Try a different URL or add manually</p></div>`;
+            return;
         }
 
-        // Display crawled prospects with multi-select
-        function displayCrawledProspects(crawledProspects, rawData = null, sourceUrl = null) {
-            const container = document.getElementById('prospects-container');
-            
-            // Clear cache for new crawl
-            crawledProspectsCache = [];
-            selectedProspectsForBulkAdd.clear();
-            
-            let headerContent = '';
-            if (crawledProspects.length === 0) {
-                headerContent = `
-                    <div style="background: #fee2e2; padding: 16px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #ef4444;">
-                        <strong>⚠️ No prospects auto-detected</strong>
-                        <p style="font-size: 13px; margin-top: 4px; color: #991b1b;">
-                            The page was scraped successfully, but no prospect patterns were found. 
-                            View the raw content below and add prospects manually.
-                        </p>
-                    </div>
-                `;
-            } else {
-                headerContent = `
-                    <div style="background: #fef3c7; padding: 16px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #f59e0b;">
-                        <strong>🌐 Found ${crawledProspects.length} prospects</strong>
-                        <p style="font-size: 13px; margin-top: 4px; color: #92400e;">Select which ones you want to add to your pipeline</p>
-                    </div>
-                `;
+        container.innerHTML = crawledProspects.map((p, idx) => {
+            const tempId = `crawled_${idx}`;
+            let company = p.company || 'Unknown Company';
+            if (company === 'Unknown' || company === 'Unknown Company') {
+                company = extractCompanyFromUrl(p.source || sourceUrl) || company;
             }
-            
-            container.innerHTML = headerContent;
-            
-            // Show crawled prospects with checkboxes
-            if (crawledProspects.length > 0) {
-                const prospectHtml = crawledProspects.map((p, idx) => {
-                    const tempId = `crawled_${idx}`;
-                    // If company is Unknown, try to extract from source URL
-                    let company = p.company || 'Unknown Company';
-                    if (company === 'Unknown' || company === 'Unknown Company') {
-                        const extractedCompany = extractCompanyFromUrl(p.source || sourceUrl);
-                        if (extractedCompany) {
-                            company = extractedCompany;
-                        }
-                    }
-                    
-                    const prospectData = {
-                        ...p,
-                        company: company,
-                        status: 'lead',
-                        deal_size: 0,
-                        _temp_id: tempId
-                    };
-                    crawledProspectsCache.push(prospectData);
-                    
+            const pd = { ...p, company, status: 'lead', deal_size: 0, _temp_id: tempId };
+            crawledProspectsCache.push(pd);
+            return `
+            <div class="prospect-card crawled">
+                <input type="checkbox" class="prospect-checkbox" onchange="toggleCrawledProspectSelection('${tempId}', this.checked)" />
+                <div class="warmth-dot warmth-cold"></div>
+                <div class="prospect-info">
+                    <h3>${esc(p.name || 'Unknown')}</h3>
+                    <p><strong>${esc(company)}</strong>${p.title ? ' &middot; ' + esc(p.title) : ''}</p>
+                    ${p.email ? `<p style="color:var(--text-dim);font-size:11px;">${esc(p.email)}</p>` : ''}
+                    <div class="prospect-meta">
+                        <span class="source-badge">${extractDomain(p.source || sourceUrl)}</span>
+                        ${p.linkedin_url ? '<span style="color:var(--blue);">in</span>' : ''}
+                    </div>
+                </div>
+                <div class="prospect-actions">
+                    <button class="secondary small" onclick="editCrawledProspect(${idx})">Edit</button>
+                </div>
+            </div>`;
+        }).join('');
+        updateBulkActionsBar();
+    }
+
+    function toggleCrawledProspectSelection(tempId, checked) {
+        if (checked) selectedProspectsForBulkAdd.add(tempId);
+        else selectedProspectsForBulkAdd.delete(tempId);
+        updateBulkActionsBar();
+    }
+
+    function editCrawledProspect(idx) {
+        const p = crawledProspectsCache[idx];
+        editingId = null;
+        document.getElementById('modal-title').textContent = 'Edit Prospect';
+        document.getElementById('name').value = p.name || '';
+        document.getElementById('company').value = p.company || '';
+        document.getElementById('title').value = p.title || '';
+        document.getElementById('email').value = p.email || '';
+        document.getElementById('status').value = 'lead';
+        document.getElementById('deal-size').value = 0;
+        document.getElementById('linkedin-url').value = p.linkedin_url || '';
+        document.getElementById('source-url').value = p.source || '';
+        document.getElementById('notes').value = '';
+        document.getElementById('prospect-form').dataset.crawledIdx = idx;
+        document.getElementById('prospect-modal').classList.add('active');
+    }
+
+    function displayUrlMap(urls) {
+        const container = document.getElementById('prospects-container');
+        container.innerHTML = `
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;">
+                <h3 style="font-family:var(--font-mono);font-size:13px;color:var(--green-dim);margin-bottom:12px;">SITE MAP (${urls.length} pages)</h3>
+                <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Copy a URL and use "Scrape Page" mode to extract prospects</p>
+                <div style="max-height:400px;overflow-y:auto;background:var(--bg-primary);padding:12px;border-radius:var(--radius);font-size:11px;font-family:var(--font-mono);">
+                    ${urls.map(u => `<div style="padding:4px 0;border-bottom:1px solid var(--border);color:var(--green-dim);">${esc(u)}</div>`).join('')}
+                </div>
+            </div>`;
+    }
+
+    function showStatus(msg, type = 'info') {
+        const el = document.getElementById('crawl-status');
+        el.textContent = msg;
+        el.className = 'crawl-status active';
+        if (type === 'success') setTimeout(() => el.classList.remove('active'), 5000);
+    }
+
+    // ─── SIDE DRAWER ──────────────────────────────────────────────────────────
+    function openDrawer(prospectId) {
+        const p = prospects.find(x => x.id === prospectId);
+        if (!p) return;
+
+        document.getElementById('drawer-prospect-name').textContent = p.name;
+        const body = document.getElementById('drawer-body');
+        const warmth = p.warmth_score || 0;
+        const wColor = warmth >= 70 ? 'var(--green)' : warmth >= 40 ? 'var(--yellow)' : '#555';
+        const wLabel = warmth >= 70 ? 'HOT' : warmth >= 40 ? 'WARM' : 'COLD';
+
+        body.innerHTML = `
+            <!-- Details -->
+            <div class="drawer-section">
+                <div class="drawer-section-title">Prospect Details</div>
+                <div class="drawer-detail"><span class="drawer-detail-label">Company</span><span class="drawer-detail-value">${esc(p.company)}</span></div>
+                <div class="drawer-detail"><span class="drawer-detail-label">Title</span><span class="drawer-detail-value">${esc(p.title)}</span></div>
+                <div class="drawer-detail"><span class="drawer-detail-label">Email</span><span class="drawer-detail-value">${esc(p.email || 'N/A')}</span></div>
+                <div class="drawer-detail"><span class="drawer-detail-label">Status</span><span class="drawer-detail-value"><span class="stage-badge stage-${p.status}">${p.status}</span></span></div>
+                <div class="drawer-detail"><span class="drawer-detail-label">Deal Size</span><span class="drawer-detail-value prospect-value">$${(p.deal_size||0).toLocaleString()}</span></div>
+                ${p.linkedin_url ? `<div class="drawer-detail"><span class="drawer-detail-label">LinkedIn</span><span class="drawer-detail-value"><a href="${esc(p.linkedin_url)}" target="_blank" style="color:var(--blue);">Profile</a></span></div>` : ''}
+                ${p.source ? `<div class="drawer-detail"><span class="drawer-detail-label">Source</span><span class="drawer-detail-value">${extractDomain(p.source)}</span></div>` : ''}
+                ${p.notes ? `<div class="drawer-detail"><span class="drawer-detail-label">Notes</span><span class="drawer-detail-value">${esc(p.notes)}</span></div>` : ''}
+            </div>
+
+            <!-- Warmth -->
+            <div class="drawer-section">
+                <div class="drawer-section-title">Lead Warmth</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+                    <span style="color:${wColor};font-family:var(--font-mono);font-weight:600;">${warmth}/100 ${wLabel}</span>
+                </div>
+                <div class="warmth-bar">
+                    <div class="warmth-bar-fill" style="width:${warmth}%;background:${wColor};"></div>
+                </div>
+            </div>
+
+            <!-- AI Icebreaker -->
+            <div class="drawer-section">
+                <div class="drawer-section-title">AI Icebreaker</div>
+                <button class="primary small" onclick="generateIcebreaker('${p.id}')" id="icebreaker-btn-${p.id}">Generate Icebreaker</button>
+                <div id="icebreaker-results-${p.id}"></div>
+            </div>
+
+            <!-- Tasks -->
+            <div class="drawer-section">
+                <div class="drawer-section-title">Tasks & Reminders</div>
+                <button class="secondary small" onclick="openTaskModal('${p.id}')" style="margin-bottom:8px;">+ Add Task</button>
+                <div id="drawer-tasks-${p.id}">Loading...</div>
+            </div>
+        `;
+
+        document.getElementById('drawer-overlay').classList.add('active');
+        document.getElementById('side-drawer').classList.add('active');
+
+        loadDrawerTasks(p.id);
+    }
+
+    function closeDrawer() {
+        document.getElementById('drawer-overlay').classList.remove('active');
+        document.getElementById('side-drawer').classList.remove('active');
+    }
+
+    // ─── AI ICEBREAKER ────────────────────────────────────────────────────────
+    async function generateIcebreaker(prospectId) {
+        const p = prospects.find(x => x.id === prospectId);
+        if (!p) return;
+
+        const btn = document.getElementById(`icebreaker-btn-${prospectId}`);
+        const results = document.getElementById(`icebreaker-results-${prospectId}`);
+        btn.disabled = true;
+        btn.textContent = 'Generating...';
+        results.innerHTML = '<p style="font-size:12px;color:var(--text-dim);">Analyzing source data...</p>';
+
+        try {
+            const res = await fetch(`${API_BASE}/icebreaker`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ name: p.name, company: p.company, title: p.title, source: p.source })
+            });
+            const data = await res.json();
+
+            if (data.success && data.icebreakers.length) {
+                results.innerHTML = data.icebreakers.map((ib, i) => `
+                    <div class="icebreaker-card" onclick="copyToClipboard(this.textContent.trim())" title="Click to copy">
+                        ${esc(ib)}
+                    </div>
+                `).join('');
+            } else {
+                results.innerHTML = '<p style="font-size:12px;color:var(--text-dim);">Could not generate icebreaker.</p>';
+            }
+        } catch {
+            results.innerHTML = '<p style="font-size:12px;color:var(--red);">Error generating icebreaker.</p>';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Generate Icebreaker';
+        }
+    }
+
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            showStatus('Copied to clipboard', 'success');
+        });
+    }
+
+    // ─── TASKS ────────────────────────────────────────────────────────────────
+    async function loadAllTasks() {
+        try {
+            const res = await fetch(`${API_BASE}/tasks`);
+            const data = await res.json();
+            if (data.success) {
+                allTasks = data.data;
+                renderGlobalTasks();
+                updateTasksCount();
+            }
+        } catch {}
+    }
+
+    function updateTasksCount() {
+        const pending = allTasks.filter(t => t.status === 'pending').length;
+        document.getElementById('tasks-count').textContent = pending;
+    }
+
+    function renderGlobalTasks() {
+        const container = document.getElementById('global-tasks-list');
+        const pending = allTasks.filter(t => t.status === 'pending');
+        if (!pending.length) {
+            container.innerHTML = '<p style="font-size:12px;color:var(--text-dim);text-align:center;padding:12px;">No pending tasks</p>';
+            return;
+        }
+        container.innerHTML = pending.slice(0, 10).map(t => {
+            const isOverdue = t.due_date && new Date(t.due_date) < new Date();
+            const prospect = prospects.find(p => p.id === t.prospect_id);
+            return `
+            <div class="global-task-item">
+                <input type="checkbox" class="task-checkbox" onchange="completeTask('${t.id}')" />
+                <span class="task-title">${esc(t.title)}</span>
+                ${prospect ? `<span class="global-task-prospect">${esc(prospect.name)}</span>` : ''}
+                ${t.due_date ? `<span class="task-due ${isOverdue?'overdue':''}">${t.due_date}</span>` : ''}
+                <button class="danger small" onclick="deleteTask('${t.id}')" style="padding:2px 6px;font-size:10px;">&#x2715;</button>
+            </div>`;
+        }).join('');
+    }
+
+    async function addGlobalTask() {
+        const title = document.getElementById('new-task-title').value.trim();
+        const date = document.getElementById('new-task-date').value;
+        const prospectId = document.getElementById('new-task-prospect').value;
+        if (!title || !date) return;
+
+        try {
+            await fetch(`${API_BASE}/tasks`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ title, due_date: date, prospect_id: prospectId || null })
+            });
+            document.getElementById('new-task-title').value = '';
+            document.getElementById('new-task-date').value = '';
+            await loadAllTasks();
+        } catch {}
+    }
+
+    async function completeTask(taskId) {
+        try {
+            await fetch(`${API_BASE}/tasks/${taskId}`, {
+                method: 'PUT', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ status: 'completed' })
+            });
+            await loadAllTasks();
+        } catch {}
+    }
+
+    async function deleteTask(taskId) {
+        try {
+            await fetch(`${API_BASE}/tasks/${taskId}`, { method: 'DELETE' });
+            await loadAllTasks();
+        } catch {}
+    }
+
+    function openTaskModal(prospectId) {
+        document.getElementById('task-prospect-id-input').value = prospectId || '';
+        document.getElementById('task-title-input').value = '';
+        document.getElementById('task-desc-input').value = '';
+        document.getElementById('task-date-input').value = '';
+        document.getElementById('task-modal').classList.add('active');
+    }
+
+    function closeTaskModal() {
+        document.getElementById('task-modal').classList.remove('active');
+    }
+
+    async function handleTaskFormSubmit(e) {
+        e.preventDefault();
+        const title = document.getElementById('task-title-input').value;
+        const desc = document.getElementById('task-desc-input').value;
+        const date = document.getElementById('task-date-input').value;
+        const prospectId = document.getElementById('task-prospect-id-input').value;
+
+        try {
+            await fetch(`${API_BASE}/tasks`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ title, description: desc, due_date: date, prospect_id: prospectId || null })
+            });
+            closeTaskModal();
+            await loadAllTasks();
+            if (prospectId) loadDrawerTasks(prospectId);
+        } catch {}
+    }
+
+    async function loadDrawerTasks(prospectId) {
+        const container = document.getElementById(`drawer-tasks-${prospectId}`);
+        if (!container) return;
+        try {
+            const res = await fetch(`${API_BASE}/tasks?prospect_id=${prospectId}`);
+            const data = await res.json();
+            if (data.success && data.data.length) {
+                container.innerHTML = data.data.map(t => {
+                    const done = t.status === 'completed';
+                    const overdue = !done && t.due_date && new Date(t.due_date) < new Date();
                     return `
-                        <div class="prospect-card crawled">
-                            <input type="checkbox" class="prospect-checkbox" onchange="toggleCrawledProspectSelection('${tempId}', this.checked)" />
-                            <div class="prospect-info">
-                                <h3>${p.name || 'Unknown'}</h3>
-                                <p><strong>${company}</strong> ${p.title ? '• ' + p.title : ''}</p>
-                                ${p.email ? `<p>📧 ${p.email}</p>` : ''}
-                                <div class="prospect-meta">
-                                    <span class="source-badge">🌐 ${extractDomain(p.source || sourceUrl)}</span>
-                                    ${p.linkedin_url ? '<span>🔗 LinkedIn</span>' : ''}
-                                </div>
-                            </div>
-                            <div class="prospect-actions">
-                                <button class="secondary" onclick="editCrawledProspect(${idx})">Edit</button>
-                            </div>
-                        </div>
-                    `;
+                    <div class="task-item">
+                        <input type="checkbox" class="task-checkbox" ${done?'checked disabled':''} onchange="completeTask('${t.id}')" />
+                        <span class="task-title ${done?'done':''}">${esc(t.title)}</span>
+                        ${t.due_date ? `<span class="task-due ${overdue?'overdue':''}">${t.due_date}</span>` : ''}
+                    </div>`;
                 }).join('');
-                
-                container.innerHTML += prospectHtml;
-            }
-            
-            // Show raw content from pages array
-            if (rawData && rawData.pages && rawData.pages.length > 0) {
-                rawData.pages.forEach((page, pageIdx) => {
-                    const content = page.content || '';
-                    if (content) {
-                        container.innerHTML += `
-                            <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-top: 12px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                    <h3 style="margin: 0;">📄 Scraped Content - Page ${pageIdx + 1}</h3>
-                                    <button class="secondary" onclick="addProspectManually('${page.url || sourceUrl || ''}')">
-                                        ➕ Add Prospect Manually
-                                    </button>
-                                </div>
-                                <div style="max-height: 400px; overflow-y: auto; background: var(--bg-secondary); padding: 16px; border-radius: 6px; font-size: 12px; font-family: monospace; white-space: pre-wrap; line-height: 1.5;">
-${content.substring(0, 5000)}${content.length > 5000 ? '\n\n... (truncated)' : ''}</div>
-                            </div>
-                        `;
-                    }
-                });
-            }
-            
-            updateBulkActionsBar();
-        }
-
-        function toggleCrawledProspectSelection(tempId, isSelected) {
-            if (isSelected) {
-                selectedProspectsForBulkAdd.add(tempId);
             } else {
-                selectedProspectsForBulkAdd.delete(tempId);
+                container.innerHTML = '<p style="font-size:12px;color:var(--text-dim);">No tasks yet</p>';
             }
-            updateBulkActionsBar();
+        } catch {
+            container.innerHTML = '<p style="font-size:12px;color:var(--text-dim);">Error loading tasks</p>';
         }
+    }
 
-        function editCrawledProspect(idx) {
-            const prospect = crawledProspectsCache[idx];
-            editingId = null;
-            document.getElementById('modal-title').textContent = 'Edit Prospect';
-            document.getElementById('name').value = prospect.name || '';
-            document.getElementById('company').value = prospect.company || '';
-            document.getElementById('title').value = prospect.title || '';
-            document.getElementById('email').value = prospect.email || '';
-            document.getElementById('status').value = 'lead';
-            document.getElementById('deal-size').value = 0;
-            document.getElementById('linkedin-url').value = prospect.linkedin_url || '';
-            document.getElementById('notes').value = `Found from: ${prospect.source || 'web'}`;
-            
-            // Store the index so we can update cache on save
-            document.getElementById('prospect-form').dataset.crawledIdx = idx;
-            
-            document.getElementById('prospect-modal').classList.add('active');
-        }
-        
-        window.addProspectManually = function(source) {
-            editingId = null;
-            document.getElementById('modal-title').textContent = 'Add Prospect';
-            document.getElementById('prospect-form').reset();
-            document.getElementById('prospect-form').dataset.crawledIdx = '';
-            if (source) {
-                document.getElementById('notes').value = `Found from: ${source}`;
+    function updateTaskProspectDropdown() {
+        const sel = document.getElementById('new-task-prospect');
+        sel.innerHTML = '<option value="">General</option>' +
+            prospects.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+    }
+
+    // ─── CSV IMPORT/EXPORT ────────────────────────────────────────────────────
+    async function handleCSVImport(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch(`${API_BASE}/import-csv`, { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.success) {
+                showStatus(`Imported ${data.imported} prospects${data.errors ? `, ${data.errors} errors` : ''}`, 'success');
+                await loadProspects();
+            } else {
+                showStatus(`Import error: ${data.error}`, 'error');
             }
-            document.getElementById('prospect-modal').classList.add('active');
+        } catch {
+            showStatus('Import failed', 'error');
+        }
+        e.target.value = '';
+    }
+
+    function exportCSV() {
+        window.open(`${API_BASE}/export-csv`, '_blank');
+    }
+
+    // ─── MODAL ────────────────────────────────────────────────────────────────
+    function openModal() {
+        editingId = null;
+        document.getElementById('modal-title').textContent = 'Add Prospect';
+        document.getElementById('prospect-form').reset();
+        document.getElementById('prospect-form').dataset.crawledIdx = '';
+        document.getElementById('prospect-modal').classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('prospect-modal').classList.remove('active');
+    }
+
+    async function handleFormSubmit(e) {
+        e.preventDefault();
+        const prospect = {
+            name: document.getElementById('name').value,
+            company: document.getElementById('company').value,
+            title: document.getElementById('title').value,
+            email: document.getElementById('email').value,
+            status: document.getElementById('status').value,
+            deal_size: parseFloat(document.getElementById('deal-size').value) || 0,
+            linkedin_url: document.getElementById('linkedin-url').value,
+            source: document.getElementById('source-url').value,
+            notes: document.getElementById('notes').value
         };
 
-        // Display URL map
-        function displayUrlMap(urls) {
-            const container = document.getElementById('prospects-container');
-            
-            container.innerHTML = `
-                <div style="background: var(--bg); padding: 20px; border-radius: 8px;">
-                    <h3 style="margin-bottom: 12px;">🗺️ Website Structure (${urls.length} pages)</h3>
-                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
-                        Copy any URL and use "Scrape Page" mode to extract prospects from that specific page
-                    </p>
-                    <div style="max-height: 400px; overflow-y: auto; background: var(--bg-secondary); padding: 12px; border-radius: 6px; font-size: 12px; font-family: monospace;">
-                        ${urls.map(url => `<div style="padding: 4px 0; border-bottom: 1px solid var(--border);">${url}</div>`).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        // Show status message
-        function showStatus(message, type = 'info') {
-            const statusDiv = document.getElementById('crawl-status');
-            statusDiv.textContent = message;
-            statusDiv.className = 'crawl-status active';
-            
-            if (type === 'success') {
-                setTimeout(() => {
-                    statusDiv.classList.remove('active');
-                }, 5000);
-            }
-        }
-
-        // Modal functions
-        function openModal() {
-            editingId = null;
-            document.getElementById('modal-title').textContent = 'Add Prospect';
-            document.getElementById('prospect-form').reset();
-            document.getElementById('prospect-form').dataset.crawledIdx = '';
-            document.getElementById('prospect-modal').classList.add('active');
-        }
-
-        function closeModal() {
-            document.getElementById('prospect-modal').classList.remove('active');
-        }
-
-        // Handle form submit
-        async function handleFormSubmit(e) {
-            e.preventDefault();
-
-            const prospect = {
-                name: document.getElementById('name').value,
-                company: document.getElementById('company').value,
-                title: document.getElementById('title').value,
-                email: document.getElementById('email').value,
-                status: document.getElementById('status').value,
-                deal_size: parseFloat(document.getElementById('deal-size').value) || 0,
-                linkedin_url: document.getElementById('linkedin-url').value,
-                notes: document.getElementById('notes').value
-            };
-
-            try {
-                let response;
-                if (editingId) {
-                    response = await fetch(`${API_BASE}/prospects/${editingId}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(prospect)
-                    });
-                } else {
-                    response = await fetch(`${API_BASE}/prospects`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(prospect)
-                    });
-                }
-
-                const data = await response.json();
-
-                if (data.success) {
-                    closeModal();
-                    if (!editingId) {
-                        showStatus('✅ Prospect added successfully!', 'success');
-                    }
-                    await loadProspects();
-                } else {
-                    alert('Error saving prospect');
-                }
-            } catch (error) {
-                console.error('Error saving prospect:', error);
-                alert('Error saving prospect');
-            }
-        }
-
-        // Edit prospect
-        async function editProspect(id) {
-            const prospect = prospects.find(p => p.id === id);
-            if (!prospect) return;
-
-            editingId = id;
-            document.getElementById('modal-title').textContent = 'Edit Prospect';
-            document.getElementById('name').value = prospect.name || '';
-            document.getElementById('company').value = prospect.company || '';
-            document.getElementById('title').value = prospect.title || '';
-            document.getElementById('email').value = prospect.email || '';
-            document.getElementById('status').value = prospect.status || 'lead';
-            document.getElementById('deal-size').value = prospect.deal_size || 0;
-            document.getElementById('linkedin-url').value = prospect.linkedin_url || '';
-            document.getElementById('notes').value = prospect.notes || '';
-            document.getElementById('prospect-modal').classList.add('active');
-        }
-
-        // Delete prospect
-        async function deleteProspect(id) {
-            if (!confirm('Are you sure you want to delete this prospect?')) return;
-
-            try {
-                const response = await fetch(`${API_BASE}/prospects/${id}`, {
-                    method: 'DELETE'
+        try {
+            let res;
+            if (editingId) {
+                res = await fetch(`${API_BASE}/prospects/${editingId}`, {
+                    method: 'PUT', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify(prospect)
                 });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    await loadProspects();
-                } else {
-                    alert('Error deleting prospect');
-                }
-            } catch (error) {
-                console.error('Error deleting prospect:', error);
-                alert('Error deleting prospect');
+            } else {
+                res = await fetch(`${API_BASE}/prospects`, {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify(prospect)
+                });
             }
-        }
-
-        // Update stats
-        function updateStats() {
-            const total = prospects.length;
-            const leads = prospects.filter(p => p.status === 'lead').length;
-            const won = prospects.filter(p => p.status === 'won').length;
-            const value = prospects.reduce((sum, p) => sum + (p.deal_size || 0), 0);
-
-            document.getElementById('total-count').textContent = total;
-            document.getElementById('leads-count').textContent = leads;
-            document.getElementById('pipeline-value').textContent = '$' + value.toLocaleString();
-            document.getElementById('won-count').textContent = won;
-        }
-
-        // Initialize on load
-        window.addEventListener('load', init);
-
-        // Close modal on outside click
-        document.getElementById('prospect-modal').addEventListener('click', (e) => {
-            if (e.target.id === 'prospect-modal') {
+            const data = await res.json();
+            if (data.success) {
                 closeModal();
+                showStatus(editingId ? 'Prospect updated' : 'Prospect added', 'success');
+                await loadProspects();
             }
-        });
-    </script>
+        } catch {
+            showStatus('Error saving prospect', 'error');
+        }
+    }
+
+    async function editProspect(id) {
+        const p = prospects.find(x => x.id === id);
+        if (!p) return;
+        editingId = id;
+        document.getElementById('modal-title').textContent = 'Edit Prospect';
+        document.getElementById('name').value = p.name || '';
+        document.getElementById('company').value = p.company || '';
+        document.getElementById('title').value = p.title || '';
+        document.getElementById('email').value = p.email || '';
+        document.getElementById('status').value = p.status || 'lead';
+        document.getElementById('deal-size').value = p.deal_size || 0;
+        document.getElementById('linkedin-url').value = p.linkedin_url || '';
+        document.getElementById('source-url').value = p.source || '';
+        document.getElementById('notes').value = p.notes || '';
+        document.getElementById('prospect-modal').classList.add('active');
+    }
+
+    async function deleteProspect(id) {
+        if (!confirm('Delete this prospect?')) return;
+        try {
+            const res = await fetch(`${API_BASE}/prospects/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) await loadProspects();
+        } catch {}
+    }
+
+    // ─── STATS ────────────────────────────────────────────────────────────────
+    function updateStats() {
+        const total = prospects.length;
+        const leads = prospects.filter(p => p.status === 'lead').length;
+        const won = prospects.filter(p => p.status === 'won').length;
+        const value = prospects.reduce((s, p) => s + (p.deal_size || 0), 0);
+
+        animateCounter('total-count', total);
+        animateCounter('leads-count', leads);
+        animateCounter('won-count', won);
+        document.getElementById('pipeline-value').textContent = '$' + value.toLocaleString();
+    }
+
+    function animateCounter(id, target) {
+        const el = document.getElementById(id);
+        const current = parseInt(el.textContent) || 0;
+        if (current === target) return;
+        const step = target > current ? 1 : -1;
+        const duration = 300;
+        const steps = Math.abs(target - current);
+        const interval = Math.max(duration / steps, 20);
+        let val = current;
+        const timer = setInterval(() => {
+            val += step;
+            el.textContent = val;
+            if (val === target) clearInterval(timer);
+        }, interval);
+    }
+
+    // ─── CHAT ─────────────────────────────────────────────────────────────────
+    function initChat() {
+        if (chatUsername) {
+            document.getElementById('chat-username-setup').style.display = 'none';
+            document.getElementById('chat-main').style.display = 'flex';
+        }
+        loadChatMessages();
+        connectChatSocket();
+    }
+
+    function connectChatSocket() {
+        try {
+            chatSocket = io(window.location.origin + '/chat', {
+                transports: ['websocket', 'polling']
+            });
+
+            chatSocket.on('connect', () => {
+                if (chatUsername) {
+                    chatSocket.emit('set_username', { username: chatUsername });
+                }
+            });
+
+            chatSocket.on('new_message', (msg) => {
+                appendChatMessage(msg);
+                if (!chatOpen && msg.username !== chatUsername) {
+                    unreadMessages++;
+                    updateChatBadge();
+                }
+            });
+
+            chatSocket.on('user_joined', (data) => {
+                document.getElementById('chat-online-count').textContent = data.online_users.length;
+            });
+
+            chatSocket.on('user_left', (data) => {
+                document.getElementById('chat-online-count').textContent = data.online_users.length;
+            });
+        } catch (e) {
+            console.log('Chat socket not available, using REST fallback');
+        }
+    }
+
+    function setChatUsername() {
+        const input = document.getElementById('chat-username-input');
+        const name = input.value.trim();
+        if (!name) return;
+        chatUsername = name;
+        localStorage.setItem('chat_username', name);
+        document.getElementById('chat-username-setup').style.display = 'none';
+        document.getElementById('chat-main').style.display = 'flex';
+        if (chatSocket && chatSocket.connected) {
+            chatSocket.emit('set_username', { username: name });
+        }
+    }
+
+    async function loadChatMessages() {
+        try {
+            const res = await fetch(`${API_BASE}/chat/messages?limit=50`);
+            const data = await res.json();
+            if (data.success) {
+                const container = document.getElementById('chat-messages');
+                container.innerHTML = '';
+                data.data.forEach(msg => appendChatMessage(msg, false));
+                container.scrollTop = container.scrollHeight;
+            }
+        } catch {}
+    }
+
+    function appendChatMessage(msg, scroll = true) {
+        const container = document.getElementById('chat-messages');
+        const isSelf = msg.username === chatUsername;
+        const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+        const div = document.createElement('div');
+        div.className = `chat-msg ${isSelf ? 'self' : ''}`;
+        div.innerHTML = `
+            <div class="chat-msg-header">
+                <span class="chat-msg-user">${esc(msg.username)}</span>
+                <span class="chat-msg-time">${time}</span>
+            </div>
+            <div class="chat-msg-text">${esc(msg.message)}</div>
+        `;
+        container.appendChild(div);
+        if (scroll) container.scrollTop = container.scrollHeight;
+    }
+
+    function sendChatMessage() {
+        const input = document.getElementById('chat-msg-input');
+        const msg = input.value.trim();
+        if (!msg || !chatUsername) return;
+
+        if (chatSocket && chatSocket.connected) {
+            chatSocket.emit('send_message', { message: msg, username: chatUsername });
+        } else {
+            // REST fallback
+            fetch(`${API_BASE}/chat/messages`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ username: chatUsername, message: msg })
+            });
+        }
+        input.value = '';
+    }
+
+    function toggleChat() {
+        chatOpen = !chatOpen;
+        document.getElementById('chat-window').classList.toggle('active', chatOpen);
+        if (chatOpen) {
+            unreadMessages = 0;
+            updateChatBadge();
+            document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+        }
+    }
+
+    function updateChatBadge() {
+        const badge = document.getElementById('chat-badge');
+        badge.textContent = unreadMessages;
+        badge.classList.toggle('active', unreadMessages > 0);
+    }
+
+    // ─── MODAL CLICK OUTSIDE ──────────────────────────────────────────────────
+    document.addEventListener('click', (e) => {
+        if (e.target.id === 'prospect-modal') closeModal();
+        if (e.target.id === 'task-modal') closeTaskModal();
+    });
+
+    // ─── GO ───────────────────────────────────────────────────────────────────
+    window.addEventListener('load', init);
+</script>
 </body>
 </html>
