@@ -1269,7 +1269,7 @@
         .task-item {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             padding: 10px 12px;
             background: var(--bg-primary);
             border: 1px solid var(--border);
@@ -1277,25 +1277,55 @@
             margin-bottom: 6px;
             font-size: 13px;
             transition: var(--transition);
-            min-height: 40px;
         }
 
         .task-item:hover { border-color: var(--border-glow); }
 
-        .task-checkbox { accent-color: var(--green); cursor: pointer; flex-shrink: 0; }
+        .task-checkbox {
+            accent-color: var(--green);
+            cursor: pointer;
+            flex-shrink: 0;
+            width: 14px;
+            height: 14px;
+            margin: 0;
+        }
 
-        .task-title { flex: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .task-title {
+            flex: 1;
+            color: var(--text);
+            font-size: 13px;
+            line-height: 1.3;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
         .task-title.done { text-decoration: line-through; color: var(--text-dim); }
 
         .task-due {
-            font-size: 11px;
+            font-size: 10px;
             font-family: var(--font-mono);
             color: var(--text-dim);
             flex-shrink: 0;
             white-space: nowrap;
+            padding: 2px 6px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 3px;
         }
 
-        .task-due.overdue { color: var(--red); }
+        .task-due.overdue { color: var(--red); background: rgba(255,68,68,0.08); }
+
+        .task-delete-btn {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 10px;
+            padding: 2px 4px;
+            flex-shrink: 0;
+            opacity: 0.4;
+            transition: var(--transition);
+        }
+        .task-delete-btn:hover { opacity: 1; color: var(--red); }
 
         /* ─── MODAL ────────────────────────────────────────────────────── */
         .modal {
@@ -1420,37 +1450,16 @@
         .global-task-item {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             padding: 10px 12px;
             background: var(--bg-primary);
             border: 1px solid var(--border);
             border-radius: var(--radius);
             margin-bottom: 6px;
             transition: var(--transition);
-            min-height: 40px;
         }
 
         .global-task-item:hover { border-color: var(--border-glow); }
-
-        .global-task-item .task-checkbox { flex-shrink: 0; }
-
-        .global-task-item .task-title {
-            flex: 1;
-            font-size: 13px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .global-task-item .task-due {
-            font-size: 11px;
-            font-family: var(--font-mono);
-            color: var(--text-dim);
-            flex-shrink: 0;
-            white-space: nowrap;
-        }
-
-        .global-task-item .task-due.overdue { color: var(--red); }
 
         .global-task-prospect {
             font-size: 10px;
@@ -1821,8 +1830,14 @@
 
         .sauce-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(3, 1fr);
             gap: 12px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 768px) {
+            .sauce-grid { grid-template-columns: 1fr; }
         }
 
         .sauce-card {
@@ -3969,7 +3984,7 @@
                 <span class="task-title">${esc(t.title)}</span>
                 ${prospect ? `<span class="global-task-prospect">${esc(prospect.name)}</span>` : ''}
                 ${t.due_date ? `<span class="task-due ${isOverdue?'overdue':''}">${t.due_date}</span>` : ''}
-                <button class="danger small" onclick="deleteTask('${t.id}')" style="padding:2px 6px;font-size:10px;">&#x2715;</button>
+                <button class="task-delete-btn" onclick="deleteTask('${t.id}')" title="Delete task">&#x2715;</button>
             </div>`;
         }).join('');
     }
@@ -4075,7 +4090,7 @@
                         <input type="checkbox" class="task-checkbox" ${done?'checked disabled':''} onchange="completeTask('${t.id}')" />
                         <span class="task-title ${done?'done':''}">${esc(t.title)}</span>
                         ${t.due_date ? `<span class="task-due ${overdue?'overdue':''}">${t.due_date}</span>` : ''}
-                        <button class="danger small" onclick="deleteTask('${t.id}')" style="padding:2px 6px;font-size:10px;flex-shrink:0;">&#x2715;</button>
+                        <button class="task-delete-btn" onclick="deleteTask('${t.id}')" title="Delete task">&#x2715;</button>
                     </div>`;
                 }).join('');
             } else {
