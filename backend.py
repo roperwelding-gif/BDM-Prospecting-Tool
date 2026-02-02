@@ -143,12 +143,152 @@ def init_db():
         created_at TEXT
     )''')
 
-    # Migrate existing prospects table if needed (add new columns)
+    # ─── Accounts (company normalization) ─────────────────────────────────
+    c.execute('''CREATE TABLE IF NOT EXISTS accounts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        website TEXT,
+        industry TEXT,
+        employee_count INTEGER,
+        headquarters_location TEXT,
+        created_at TEXT,
+        updated_at TEXT
+    )''')
+
+    # ─── Activity Timeline ────────────────────────────────────────────────
+    c.execute('''CREATE TABLE IF NOT EXISTS activity_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        prospect_id TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        description TEXT,
+        metadata TEXT,
+        created_at TEXT,
+        FOREIGN KEY (prospect_id) REFERENCES prospects(id) ON DELETE CASCADE
+    )''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_activity_prospect ON activity_log(prospect_id, created_at)')
+
+    # ─── User Stock Symbols ───────────────────────────────────────────────
+    c.execute('''CREATE TABLE IF NOT EXISTS user_stocks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        symbol TEXT NOT NULL UNIQUE,
+        added_at TEXT
+    )''')
+    # Seed defaults if empty
+    c.execute('SELECT COUNT(*) as cnt FROM user_stocks')
+    if c.fetchone()['cnt'] == 0:
+        defaults = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'JPM', 'V', 'SPY', 'QQQ', 'NFLX', 'AMD']
+        for sym in defaults:
+            c.execute('INSERT OR IGNORE INTO user_stocks (symbol, added_at) VALUES (?, ?)', (sym, datetime.now().isoformat()))
+
+    # ─── Email Sequences ──────────────────────────────────────────────────
+    c.execute('''CREATE TABLE IF NOT EXISTS email_sequences (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT,
+        updated_at TEXT
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS sequence_steps (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sequence_id INTEGER NOT NULL,
+        step_number INTEGER NOT NULL,
+        day_offset INTEGER NOT NULL,
+        subject_template TEXT,
+        body_template TEXT,
+        step_type TEXT DEFAULT 'email',
+        FOREIGN KEY (sequence_id) REFERENCES email_sequences(id) ON DELETE CASCADE
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS prospect_sequences (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        prospect_id TEXT NOT NULL,
+        sequence_id INTEGER NOT NULL,
+        enrolled_at TEXT,
+        current_step INTEGER DEFAULT 1,
+        status TEXT DEFAULT 'active',
+        completed_at TEXT,
+        FOREIGN KEY (prospect_id) REFERENCES prospects(id) ON DELETE CASCADE,
+        FOREIGN KEY (sequence_id) REFERENCES email_sequences(id) ON DELETE CASCADE
+    )''')
+
+    # ─── Gamification: Streaks & Challenges ───────────────────────────────
+    c.execute('''CREATE TABLE IF NOT EXISTS streaks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        current_streak INTEGER DEFAULT 0,
+        longest_streak INTEGER DEFAULT 0,
+        last_active_date TEXT,
+        updated_at TEXT
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS challenges (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        description TEXT,
+        challenge_type TEXT NOT NULL,
+        target_action TEXT NOT NULL,
+        target_count INTEGER NOT NULL,
+        xp_reward INTEGER NOT NULL,
+        is_active INTEGER DEFAULT 1,
+        start_date TEXT,
+        end_date TEXT
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS challenge_progress (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        challenge_id INTEGER NOT NULL,
+        user_id INTEGER,
+        current_count INTEGER DEFAULT 0,
+        completed INTEGER DEFAULT 0,
+        completed_at TEXT,
+        date_key TEXT,
+        FOREIGN KEY (challenge_id) REFERENCES challenges(id) ON DELETE CASCADE
+    )''')
+
+    # Seed default challenges if empty
+    c.execute('SELECT COUNT(*) as cnt FROM challenges')
+    if c.fetchone()['cnt'] == 0:
+        seed_challenges = [
+            ('Contact 5 Prospects', 'Reach out to 5 prospects today', 'daily', 'status_lead_to_contacted', 5, 25),
+            ('Complete 3 Tasks', 'Finish 3 tasks today', 'daily', 'task_completed', 3, 15),
+            ('Add 2 Prospects', 'Add 2 new prospects today', 'daily', 'prospect_added', 2, 10),
+            ('Close a Deal', 'Win a deal this week', 'weekly', 'status_to_won', 1, 100),
+            ('Add 10 Prospects', 'Add 10 prospects this week', 'weekly', 'prospect_added', 10, 50),
+            ('Complete 10 Tasks', 'Finish 10 tasks this week', 'weekly', 'task_completed', 10, 40),
+        ]
+        for title, desc, ctype, action, count, xp in seed_challenges:
+            c.execute('INSERT INTO challenges (title, description, challenge_type, target_action, target_count, xp_reward, is_active) VALUES (?,?,?,?,?,?,1)',
+                      (title, desc, ctype, action, count, xp))
+
+    # ─── Forum Reports ────────────────────────────────────────────────────
+    c.execute('''CREATE TABLE IF NOT EXISTS forum_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_id INTEGER,
+        comment_id INTEGER,
+        reporter_user_id INTEGER NOT NULL,
+        reason TEXT,
+        status TEXT DEFAULT 'pending',
+        created_at TEXT,
+        FOREIGN KEY (post_id) REFERENCES forum_posts(id) ON DELETE CASCADE,
+        FOREIGN KEY (comment_id) REFERENCES forum_comments(id) ON DELETE CASCADE,
+        FOREIGN KEY (reporter_user_id) REFERENCES users(id)
+    )''')
+
+    # Migrate existing tables (add new columns)
     migrations = [
         ('prospects', 'warmth_score', 'INTEGER DEFAULT 20'),
         ('prospects', 'last_contact_date', 'TEXT'),
         ('prospects', 'email_opens', 'INTEGER DEFAULT 0'),
         ('prospects', 'reply_count', 'INTEGER DEFAULT 0'),
+        ('prospects', 'status_updated_at', 'TEXT'),
+        ('prospects', 'account_id', 'INTEGER'),
+        ('tasks', 'priority', "TEXT DEFAULT 'medium'"),
+        ('tasks', 'category', "TEXT DEFAULT 'general'"),
+        ('users', 'role', "TEXT DEFAULT 'user'"),
+        ('forum_posts', 'is_reported', 'INTEGER DEFAULT 0'),
+        ('forum_comments', 'is_reported', 'INTEGER DEFAULT 0'),
     ]
     for table, col, col_type in migrations:
         if not column_exists(c, table, col):
@@ -217,7 +357,7 @@ class FirecrawlClient:
             'url': url,
             'limit': limit,
             'scrapeOptions': scrape_options or {
-                'formats': ['markdown'],
+                'formats': ['markdown', 'html'],
                 'onlyMainContent': True
             }
         }
@@ -340,9 +480,249 @@ def calculate_extraction_confidence(prospect: dict) -> int:
         score += 10
     return min(100, score)
 
-def extract_prospects_from_content(content: str, source_url: str) -> List[Dict]:
+def _extract_from_html_cards(html_content: str, source_url: str) -> List[Dict]:
+    """Extract prospects from HTML team/about pages using structural patterns."""
+    prospects = []
+    if not html_content:
+        return prospects
+
+    title_keywords_lower = [
+        'ceo', 'cto', 'cfo', 'coo', 'cmo', 'vp', 'director', 'manager',
+        'head of', 'lead', 'engineer', 'developer', 'designer', 'founder',
+        'president', 'chief', 'officer', 'executive', 'consultant',
+        'architect', 'principal', 'senior', 'partner', 'analyst', 'coordinator',
+        'specialist', 'recruiter', 'advisor', 'strategist', 'associate', 'co-founder',
+        'controller', 'managing'
+    ]
+
+    # Strategy: find repeated card-like elements with names and titles
+    # Look for text content between tags that matches Name + Title patterns
+    # Remove scripts and styles
+    clean_html = re.sub(r'<script[^>]*>.*?</script>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
+    clean_html = re.sub(r'<style[^>]*>.*?</style>', '', clean_html, flags=re.DOTALL | re.IGNORECASE)
+
+    # Extract text blocks from card-like divs or sections
+    # Find all text content, stripping tags
+    text_blocks = re.split(r'<(?:div|section|article|li|td|figure)[^>]*>', clean_html, flags=re.IGNORECASE)
+
+    name_pattern = re.compile(r'\b([A-Z][a-z]{1,15}(?:\s+[A-Z]\.?)?\s+[A-Z][a-z]{1,20}(?:\s+[A-Z][a-z]{1,20})?)\b')
+
+    seen_names = set()
+
+    for block in text_blocks:
+        if len(block) > 2000 or len(block) < 10:
+            continue
+        # Strip remaining tags to get text
+        text = re.sub(r'<[^>]+>', ' ', block)
+        text = re.sub(r'\s+', ' ', text).strip()
+        if len(text) < 5 or len(text) > 500:
+            continue
+
+        names = name_pattern.findall(text)
+        for name in names:
+            name = name.strip()
+            if len(name.split()) < 2:
+                continue
+            name_lower = name.lower()
+            if name_lower in seen_names:
+                continue
+
+            # Check it's not a title/company name
+            skip_words = {'privacy', 'policy', 'terms', 'copyright', 'contact', 'about', 'learn',
+                          'read', 'more', 'view', 'sign', 'join', 'follow', 'get', 'started'}
+            if any(w in name_lower for w in skip_words):
+                continue
+            first_word = name.split()[0].lower()
+            title_first = ['chief', 'vice', 'senior', 'junior', 'lead', 'principal', 'director', 'manager', 'head', 'general', 'managing']
+            if first_word in title_first:
+                continue
+
+            # Look for title in the same block
+            title = None
+            for kw in title_keywords_lower:
+                if kw in text.lower():
+                    # Extract the line/phrase containing the keyword
+                    for segment in text.split('  '):
+                        seg_clean = segment.strip()
+                        if kw in seg_clean.lower() and seg_clean.lower() != name_lower and len(seg_clean) < 150:
+                            title = seg_clean
+                            break
+                    if not title:
+                        # Try finding title near the keyword
+                        idx = text.lower().find(kw)
+                        start = max(0, idx - 5)
+                        end = min(len(text), idx + 80)
+                        candidate = text[start:end].strip()
+                        if candidate and candidate.lower() != name_lower:
+                            title = candidate
+                    if title:
+                        break
+
+            # Extract email from block
+            email = None
+            emails = re.findall(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', text)
+            if emails:
+                personal = [e for e in emails if not any(s in e.lower() for s in ['noreply', 'no-reply', 'support', 'info@', 'hello@'])]
+                email = personal[0] if personal else emails[0]
+
+            # Extract LinkedIn
+            linkedin_url = None
+            li_match = re.search(r'https?://(?:www\.)?linkedin\.com/in/[^\s"\'<>]+', block)
+            if li_match:
+                linkedin_url = li_match.group(0).rstrip('/')
+
+            # Extract phone
+            phone = None
+            phone_match = re.search(r'[\(]?\d{3}[\).\-\s]?\s*\d{3}[\-.\s]\d{4}', text)
+            if phone_match:
+                phone = phone_match.group(0)
+
+            if title or email or linkedin_url or phone:
+                seen_names.add(name_lower)
+                prospect = {
+                    'name': name,
+                    'title': title,
+                    'company': None,
+                    'email': email,
+                    'phone': phone,
+                    'linkedin_url': linkedin_url,
+                    'source': source_url
+                }
+                prospect['confidence'] = calculate_extraction_confidence(prospect)
+                prospects.append(prospect)
+
+    return prospects
+
+def _extract_from_headings(content: str, source_url: str) -> List[Dict]:
+    """Extract prospects from markdown heading patterns (## Name / ### Name)."""
+    prospects = []
+    if not content:
+        return prospects
+
+    title_keywords_lower = [
+        'ceo', 'cto', 'cfo', 'coo', 'cmo', 'vp', 'director', 'manager',
+        'head of', 'lead', 'founder', 'president', 'chief', 'officer', 'partner',
+        'executive', 'principal', 'senior', 'associate', 'co-founder', 'analyst'
+    ]
+
+    heading_pattern = re.compile(r'^#{2,4}\s+([A-Z][a-z]+ [A-Z][a-z]+(?: [A-Z][a-z]+)?)\s*$', re.MULTILINE)
+    seen_names = set()
+
+    for match in heading_pattern.finditer(content):
+        name = match.group(1).strip()
+        name_lower = name.lower()
+        if name_lower in seen_names or len(name.split()) < 2:
+            continue
+
+        # Get context after the heading
+        pos = match.end()
+        context = content[pos:pos + 400]
+
+        title = None
+        lines = context.split('\n')
+        for line in lines[:6]:
+            line_stripped = line.strip()
+            if not line_stripped or line_stripped.startswith('#'):
+                continue
+            for kw in title_keywords_lower:
+                if kw in line_stripped.lower() and len(line_stripped) < 150:
+                    title = line_stripped
+                    break
+            if title:
+                break
+
+        email = None
+        emails = re.findall(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', context)
+        if emails:
+            email = emails[0]
+
+        linkedin_url = None
+        li_match = re.search(r'https?://(?:www\.)?linkedin\.com/in/[^\s)]+', context)
+        if li_match:
+            linkedin_url = li_match.group(0)
+
+        if title or email or linkedin_url:
+            seen_names.add(name_lower)
+            prospect = {
+                'name': name, 'title': title, 'company': None,
+                'email': email, 'linkedin_url': linkedin_url, 'source': source_url
+            }
+            prospect['confidence'] = calculate_extraction_confidence(prospect)
+            prospects.append(prospect)
+
+    return prospects
+
+def _extract_from_jsonld(html_content: str, source_url: str) -> List[Dict]:
+    """Extract prospects from JSON-LD schema.org Person data."""
+    import json as _json
+    prospects = []
+    if not html_content:
+        return prospects
+
+    ld_blocks = re.findall(r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>', html_content, re.DOTALL | re.IGNORECASE)
+    for block in ld_blocks:
+        try:
+            data = _json.loads(block)
+            items = data if isinstance(data, list) else [data]
+            for item in items:
+                if item.get('@type') == 'Person' or (isinstance(item.get('@graph'), list)):
+                    persons = [item] if item.get('@type') == 'Person' else [g for g in item.get('@graph', []) if g.get('@type') == 'Person']
+                    for person in persons:
+                        name = person.get('name', '')
+                        if not name or len(name.split()) < 2:
+                            continue
+                        prospect = {
+                            'name': name,
+                            'title': person.get('jobTitle'),
+                            'company': None,
+                            'email': person.get('email'),
+                            'linkedin_url': None,
+                            'source': source_url
+                        }
+                        org = person.get('worksFor')
+                        if isinstance(org, dict):
+                            prospect['company'] = org.get('name')
+                        elif isinstance(org, str):
+                            prospect['company'] = org
+                        for link in (person.get('sameAs') or []):
+                            if 'linkedin.com' in str(link):
+                                prospect['linkedin_url'] = link
+                                break
+                        prospect['confidence'] = calculate_extraction_confidence(prospect)
+                        prospects.append(prospect)
+        except (ValueError, KeyError, TypeError):
+            continue
+    return prospects
+
+def extract_prospects_from_content(content: str, source_url: str, html_content: str = None) -> List[Dict]:
     """
-    Extract prospect information from Firecrawl markdown content.
+    Extract prospect information using multiple strategies.
+    Tries regex on markdown first, falls back to HTML card parsing,
+    heading extraction, and JSON-LD.
+    """
+    prospects = _extract_regex(content, source_url)
+
+    # If regex found few results, try other strategies
+    if len(prospects) < 2 and html_content:
+        html_prospects = _extract_from_html_cards(html_content, source_url)
+        if len(html_prospects) > len(prospects):
+            prospects = html_prospects
+
+    if len(prospects) < 2 and html_content:
+        jsonld_prospects = _extract_from_jsonld(html_content, source_url)
+        if len(jsonld_prospects) > len(prospects):
+            prospects = jsonld_prospects
+
+    if len(prospects) < 2:
+        heading_prospects = _extract_from_headings(content, source_url)
+        if len(heading_prospects) > len(prospects):
+            prospects = heading_prospects
+
+    return prospects
+
+def _extract_regex(content: str, source_url: str) -> List[Dict]:
+    """
+    Original regex-based extraction from Firecrawl markdown content.
     Uses tight context windows to avoid mixing LinkedIn/title between contacts.
     """
     prospects = []
@@ -567,6 +947,19 @@ def calculate_warmth_score(prospect: dict) -> int:
 
     return max(0, min(100, score))
 
+def log_activity(prospect_id, event_type, description, metadata=None):
+    """Log an activity event for a prospect."""
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        import json as _json
+        c.execute('INSERT INTO activity_log (prospect_id, event_type, description, metadata, created_at) VALUES (?,?,?,?,?)',
+                  (prospect_id, event_type, description, _json.dumps(metadata) if metadata else None, datetime.now().isoformat()))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
 # ─── Static File Serving ──────────────────────────────────────────────────────
 
 @app.route('/logo.png')
@@ -619,6 +1012,18 @@ def get_prospects():
     for row in c.fetchall():
         p = dict(row)
         p['warmth_score'] = calculate_warmth_score(p)
+        # Stale lead detection
+        if p.get('status_updated_at'):
+            try:
+                days_in_status = (datetime.now() - datetime.fromisoformat(p['status_updated_at'])).days
+                p['is_stale'] = days_in_status >= 14 and p.get('status') in ('qualified', 'proposal')
+                p['days_in_status'] = days_in_status
+            except (ValueError, TypeError):
+                p['is_stale'] = False
+                p['days_in_status'] = 0
+        else:
+            p['is_stale'] = False
+            p['days_in_status'] = 0
         prospects.append(p)
     conn.close()
     return jsonify({
@@ -634,15 +1039,17 @@ def add_prospect():
     prospect_id = f"p_{datetime.now().timestamp()}"
     conn = get_db()
     c = conn.cursor()
-    c.execute('''INSERT INTO prospects (id, name, company, title, email, phone, status, deal_size, created_at, source, linkedin_url, notes, warmth_score, last_contact_date, email_opens, reply_count)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+    now_iso = datetime.now().isoformat()
+    c.execute('''INSERT INTO prospects (id, name, company, title, email, phone, status, deal_size, created_at, source, linkedin_url, notes, warmth_score, last_contact_date, email_opens, reply_count, status_updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
               (prospect_id, data.get('name'), data.get('company'), data.get('title'),
                data.get('email'), data.get('phone'), data.get('status', 'lead'), data.get('deal_size', 0),
-               datetime.now().isoformat(), data.get('source'), data.get('linkedin_url'),
-               data.get('notes'), 20, None, 0, 0))
+               now_iso, data.get('source'), data.get('linkedin_url'),
+               data.get('notes'), 20, None, 0, 0, now_iso))
     conn.commit()
     conn.close()
     award_xp('prospect_added', data.get('name', ''))
+    log_activity(prospect_id, 'created', f'Prospect "{data.get("name", "")}" added')
     return jsonify({'success': True, 'id': prospect_id})
 
 @app.route('/api/prospects/<prospect_id>', methods=['PUT'])
@@ -663,17 +1070,23 @@ def update_prospect(prospect_id):
     update_fields = []
     values = []
     for field in ['status', 'name', 'company', 'title', 'email', 'phone', 'deal_size', 'notes',
-                  'linkedin_url', 'warmth_score', 'last_contact_date', 'email_opens', 'reply_count']:
+                  'linkedin_url', 'warmth_score', 'last_contact_date', 'email_opens', 'reply_count', 'account_id']:
         if field in data:
             update_fields.append(f"{field} = ?")
             values.append(data[field])
+
+    # Auto-update status_updated_at when status changes
+    if 'status' in data and old_status != data.get('status'):
+        update_fields.append('status_updated_at = ?')
+        values.append(datetime.now().isoformat())
+
     if update_fields:
         values.append(prospect_id)
         query = f"UPDATE prospects SET {', '.join(update_fields)} WHERE id = ?"
         c.execute(query, values)
         conn.commit()
 
-    # Award XP for status progressions
+    # Award XP for status progressions & log activity
     if old_status and 'status' in data and old_status != data['status']:
         new_status = data['status']
         if new_status == 'contacted':
@@ -684,6 +1097,8 @@ def update_prospect(prospect_id):
             award_xp('status_to_proposal', f'{prospect_id}')
         elif new_status == 'won':
             award_xp('status_to_won', f'{prospect_id}')
+        log_activity(prospect_id, 'status_change', f'Status changed from {old_status} to {new_status}',
+                     {'old_status': old_status, 'new_status': new_status})
 
     conn.close()
     return jsonify({'success': True})
@@ -745,8 +1160,9 @@ def search_prospects():
         if search_type == 'scrape' and url:
             result = firecrawl.scrape_url(url)
             if result and 'data' in result:
-                content = result['data'].get('markdown', '') or result['data'].get('html', '')
-                page_prospects = extract_prospects_from_content(content, url)
+                content = result['data'].get('markdown', '')
+                html_content = result['data'].get('html', '')
+                page_prospects = extract_prospects_from_content(content or html_content, url, html_content=html_content)
                 prospects.extend(page_prospects)
                 pages_crawled.append({
                     'url': url,
@@ -758,9 +1174,10 @@ def search_prospects():
             result = firecrawl.crawl_website(url, limit=limit)
             if result and 'data' in result:
                 for page in result['data']:
-                    content = page.get('markdown', '') or page.get('html', '')
+                    content = page.get('markdown', '')
+                    html_content = page.get('html', '')
                     page_url = page.get('url', url)
-                    page_prospects = extract_prospects_from_content(content, page_url)
+                    page_prospects = extract_prospects_from_content(content or html_content, page_url, html_content=html_content)
                     prospects.extend(page_prospects)
                     pages_crawled.append({
                         'url': page_url,
@@ -815,8 +1232,9 @@ def scrape_url():
         result = firecrawl.scrape_url(url)
         if not result or 'data' not in result:
             return jsonify({'success': False, 'error': 'Failed to scrape URL'}), 500
-        content = result['data'].get('markdown', '') or result['data'].get('html', '')
-        prospects = extract_prospects_from_content(content, url)
+        content = result['data'].get('markdown', '')
+        html_content = result['data'].get('html', '')
+        prospects = extract_prospects_from_content(content or html_content, url, html_content=html_content)
         return jsonify({
             'success': True, 'data': result['data'],
             'prospects': prospects, 'prospect_count': len(prospects)
@@ -842,13 +1260,14 @@ def crawl_website():
         pages = []
         if 'data' in result:
             for page in result['data']:
-                content = page.get('markdown', '') or page.get('html', '')
+                content = page.get('markdown', '')
+                html_content = page.get('html', '')
                 page_url = page.get('url', url)
-                page_prospects = extract_prospects_from_content(content, page_url)
+                page_prospects = extract_prospects_from_content(content or html_content, page_url, html_content=html_content)
                 all_prospects.extend(page_prospects)
                 pages.append({
                     'url': page_url, 'prospect_count': len(page_prospects),
-                    'content_length': len(content)
+                    'content_length': len(content or html_content or '')
                 })
         unique_prospects = []
         seen = set()
@@ -959,14 +1378,17 @@ def add_task():
     task_id = f"t_{datetime.now().timestamp()}"
     conn = get_db()
     c = conn.cursor()
-    c.execute('''INSERT INTO tasks (id, prospect_id, title, description, due_date, status, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)''',
+    c.execute('''INSERT INTO tasks (id, prospect_id, title, description, due_date, status, created_at, priority, category)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
               (task_id, data.get('prospect_id'), data.get('title'),
                data.get('description', ''), data.get('due_date'),
-               'pending', datetime.now().isoformat()))
+               'pending', datetime.now().isoformat(),
+               data.get('priority', 'medium'), data.get('category', 'general')))
     conn.commit()
     conn.close()
     award_xp('task_added', data.get('title', ''))
+    if data.get('prospect_id'):
+        log_activity(data['prospect_id'], 'task_created', f'Task created: {data.get("title", "")}')
     return jsonify({'success': True, 'id': task_id})
 
 @app.route('/api/tasks/<task_id>', methods=['PUT'])
@@ -977,15 +1399,16 @@ def update_task(task_id):
     c = conn.cursor()
 
     # Check if completing a task for XP
-    if data.get('status') == 'completed':
-        c.execute('SELECT status FROM tasks WHERE id = ?', (task_id,))
-        old = c.fetchone()
-        if old and old['status'] != 'completed':
-            award_xp('task_completed', task_id)
+    c.execute('SELECT * FROM tasks WHERE id = ?', (task_id,))
+    old_task = c.fetchone()
+    if data.get('status') == 'completed' and old_task and old_task['status'] != 'completed':
+        award_xp('task_completed', task_id)
+        if old_task['prospect_id']:
+            log_activity(old_task['prospect_id'], 'task_completed', f'Task completed: {old_task["title"]}')
 
     update_fields = []
     values = []
-    for field in ['title', 'description', 'due_date', 'status']:
+    for field in ['title', 'description', 'due_date', 'status', 'priority', 'category']:
         if field in data:
             update_fields.append(f"{field} = ?")
             values.append(data[field])
@@ -1350,9 +1773,25 @@ def get_stocks():
     if not ALPHA_VANTAGE_KEY:
         return jsonify({'success': True, 'stocks': [], 'error': 'No API key configured'})
 
+    # Read symbols from DB, rotate which 5 to fetch
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT symbol FROM user_stocks ORDER BY id ASC')
+    all_symbols = [row['symbol'] for row in c.fetchall()]
+    conn.close()
+    if not all_symbols:
+        all_symbols = STOCK_SYMBOLS
+
+    # Rotate: use cache timestamp to cycle through symbol groups
+    batch_size = 5
+    batch_index = int(now / 300) % max(1, (len(all_symbols) + batch_size - 1) // batch_size)
+    batch_symbols = all_symbols[batch_index * batch_size:(batch_index + 1) * batch_size]
+    if not batch_symbols:
+        batch_symbols = all_symbols[:batch_size]
+
     stocks = []
     try:
-        for sym in STOCK_SYMBOLS[:5]:
+        for sym in batch_symbols:
             url = f'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={sym}&apikey={ALPHA_VANTAGE_KEY}'
             resp = requests.get(url, timeout=8)
             data = resp.json()
@@ -1372,72 +1811,7 @@ def get_stocks():
         _stock_cache['timestamp'] = now
     return jsonify({'success': True, 'stocks': stocks, 'cached': False})
 
-# ─── Tweets via Nitter RSS ────────────────────────────────────────────────────
-
-NITTER_INSTANCES = [
-    'https://nitter.privacydev.net',
-    'https://nitter.poast.org',
-    'https://nitter.woodland.cafe',
-]
-
-TWITTER_FEEDS = {
-    'politics': ['PoliticsWolf', 'Politifact', 'theabortiondebate'],
-    'finance': ['FinancialTimes', 'business', 'markets'],
-    'crypto': ['CoinDesk', 'cabortiondebate', 'WatcherGuru'],
-    'global': ['WorldEconForum', 'economics', 'IMFNews'],
-}
-
-_tweets_cache = {'data': {}, 'timestamp': 0}
-
-@app.route('/api/tweets', methods=['GET'])
-def get_tweets():
-    """Fetch tweets via Nitter RSS. Cached for 15 minutes."""
-    category = request.args.get('category', None)
-    now = _time.time()
-
-    if _tweets_cache['data'] and (now - _tweets_cache['timestamp']) < 900:
-        data = _tweets_cache['data']
-        if category and category in data:
-            return jsonify({'success': True, 'tweets': {category: data[category]}, 'cached': True})
-        return jsonify({'success': True, 'tweets': data, 'cached': True})
-
-    all_tweets = {}
-    for cat, handles in TWITTER_FEEDS.items():
-        cat_tweets = []
-        for handle in handles:
-            for instance in NITTER_INSTANCES:
-                try:
-                    rss_url = f'{instance}/{handle}/rss'
-                    resp = requests.get(rss_url, timeout=8, headers={'User-Agent': 'Mozilla/5.0'})
-                    if resp.status_code != 200:
-                        continue
-                    root = ET.fromstring(resp.content)
-                    channel = root.find('channel')
-                    if channel is None:
-                        continue
-                    for item in channel.findall('item')[:3]:
-                        title = item.findtext('title', '')
-                        desc = item.findtext('description', '')
-                        desc_clean = re.sub(r'<[^>]+>', '', desc)[:280]
-                        cat_tweets.append({
-                            'handle': f'@{handle}',
-                            'text': desc_clean or title,
-                            'link': item.findtext('link', ''),
-                            'pubDate': item.findtext('pubDate', ''),
-                        })
-                    break
-                except Exception:
-                    continue
-        all_tweets[cat] = cat_tweets[:6]
-
-    if any(all_tweets.values()):
-        _tweets_cache['data'] = all_tweets
-        _tweets_cache['timestamp'] = now
-
-    result = all_tweets
-    if category and category in all_tweets:
-        result = {category: all_tweets[category]}
-    return jsonify({'success': True, 'tweets': result, 'cached': False})
+# ─── Tweets (hardcoded — Nitter RSS removed due to instability) ──────────────
 
 # ─── Analytics Dashboard ─────────────────────────────────────────────────────
 
@@ -1824,13 +2198,65 @@ def get_level_info(total_xp):
     }
 
 def award_xp(action, detail=''):
-    """Award XP for an action and return XP earned."""
+    """Award XP for an action, update streak and challenge progress."""
     xp = XP_ACTIONS.get(action, 0)
     if xp > 0:
         conn = get_db()
         c = conn.cursor()
+        now = datetime.now()
+        now_iso = now.isoformat()
+        today_str = now.strftime('%Y-%m-%d')
+
         c.execute('INSERT INTO xp_log (action, xp_earned, detail, created_at) VALUES (?, ?, ?, ?)',
-                  (action, xp, detail, datetime.now().isoformat()))
+                  (action, xp, detail, now_iso))
+
+        # Update streak
+        c.execute('SELECT * FROM streaks LIMIT 1')
+        streak = c.fetchone()
+        if streak:
+            streak = dict(streak)
+            last_date = streak.get('last_active_date', '')
+            if last_date == today_str:
+                pass  # Already counted today
+            elif last_date == (now - timedelta(days=1)).strftime('%Y-%m-%d'):
+                new_streak = streak['current_streak'] + 1
+                longest = max(streak['longest_streak'], new_streak)
+                c.execute('UPDATE streaks SET current_streak = ?, longest_streak = ?, last_active_date = ?, updated_at = ? WHERE id = ?',
+                          (new_streak, longest, today_str, now_iso, streak['id']))
+            else:
+                c.execute('UPDATE streaks SET current_streak = 1, last_active_date = ?, updated_at = ? WHERE id = ?',
+                          (today_str, now_iso, streak['id']))
+        else:
+            c.execute('INSERT INTO streaks (current_streak, longest_streak, last_active_date, updated_at) VALUES (1, 1, ?, ?)',
+                      (today_str, now_iso))
+
+        # Update challenge progress
+        year, week, _ = now.isocalendar()
+        week_key = f'{year}-W{week:02d}'
+        c.execute('SELECT * FROM challenges WHERE is_active = 1 AND target_action = ?', (action,))
+        for ch in c.fetchall():
+            ch = dict(ch)
+            date_key = today_str if ch['challenge_type'] == 'daily' else week_key
+            c.execute('SELECT * FROM challenge_progress WHERE challenge_id = ? AND date_key = ?', (ch['id'], date_key))
+            prog = c.fetchone()
+            if prog:
+                prog = dict(prog)
+                if not prog['completed']:
+                    new_count = prog['current_count'] + 1
+                    completed = 1 if new_count >= ch['target_count'] else 0
+                    c.execute('UPDATE challenge_progress SET current_count = ?, completed = ?, completed_at = ? WHERE id = ?',
+                              (new_count, completed, now_iso if completed else None, prog['id']))
+                    if completed:
+                        c.execute('INSERT INTO xp_log (action, xp_earned, detail, created_at) VALUES (?, ?, ?, ?)',
+                                  ('challenge_completed', ch['xp_reward'], ch['title'], now_iso))
+            else:
+                completed = 1 if 1 >= ch['target_count'] else 0
+                c.execute('INSERT INTO challenge_progress (challenge_id, current_count, completed, completed_at, date_key) VALUES (?,?,?,?,?)',
+                          (ch['id'], 1, completed, now_iso if completed else None, date_key))
+                if completed:
+                    c.execute('INSERT INTO xp_log (action, xp_earned, detail, created_at) VALUES (?, ?, ?, ?)',
+                              ('challenge_completed', ch['xp_reward'], ch['title'], now_iso))
+
         conn.commit()
         conn.close()
     return xp
@@ -1838,16 +2264,40 @@ def award_xp(action, detail=''):
 @app.route('/api/xp', methods=['GET'])
 @login_required
 def get_xp():
-    """Get total XP and level info."""
+    """Get total XP, level info, streak, and challenge progress."""
     conn = get_db()
     c = conn.cursor()
     c.execute('SELECT COALESCE(SUM(xp_earned), 0) as total FROM xp_log')
     total_xp = c.fetchone()['total']
     c.execute('SELECT * FROM xp_log ORDER BY id DESC LIMIT 10')
     recent = [dict(row) for row in c.fetchall()]
+
+    # Streak info
+    c.execute('SELECT * FROM streaks LIMIT 1')
+    streak = c.fetchone()
+    streak_info = dict(streak) if streak else {'current_streak': 0, 'longest_streak': 0}
+
+    # Active challenges with progress
+    today = datetime.now().strftime('%Y-%m-%d')
+    year, week, _ = datetime.now().isocalendar()
+    week_key = f'{year}-W{week:02d}'
+    c.execute('SELECT * FROM challenges WHERE is_active = 1')
+    challenges = []
+    for ch in c.fetchall():
+        ch = dict(ch)
+        date_key = today if ch['challenge_type'] == 'daily' else week_key
+        c.execute('SELECT current_count, completed FROM challenge_progress WHERE challenge_id = ? AND date_key = ?',
+                  (ch['id'], date_key))
+        prog = c.fetchone()
+        ch['current_count'] = prog['current_count'] if prog else 0
+        ch['completed'] = bool(prog['completed']) if prog else False
+        challenges.append(ch)
+
     conn.close()
     level_info = get_level_info(total_xp)
     level_info['recent_actions'] = recent
+    level_info['streak'] = streak_info
+    level_info['challenges'] = challenges
     return jsonify({'success': True, **level_info})
 
 @app.route('/api/xp/award', methods=['POST'])
@@ -1865,6 +2315,573 @@ def award_xp_route():
     conn.close()
     level_info = get_level_info(total_xp)
     return jsonify({'success': True, 'xp_earned': xp, **level_info})
+
+# ─── Activity Timeline ────────────────────────────────────────────────────────
+
+@app.route('/api/prospects/<prospect_id>/activity', methods=['GET'])
+@login_required
+def get_prospect_activity(prospect_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT * FROM activity_log WHERE prospect_id = ? ORDER BY created_at DESC LIMIT 50', (prospect_id,))
+    events = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({'success': True, 'data': events})
+
+@app.route('/api/prospects/<prospect_id>/activity', methods=['POST'])
+@login_required
+def add_prospect_activity(prospect_id):
+    data = request.json
+    log_activity(prospect_id, data.get('event_type', 'note'), data.get('description', ''), data.get('metadata'))
+    return jsonify({'success': True})
+
+# ─── Accounts (Company Normalization) ────────────────────────────────────────
+
+@app.route('/api/accounts', methods=['GET'])
+@login_required
+def get_accounts():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT a.*, COUNT(p.id) as prospect_count, COALESCE(SUM(p.deal_size), 0) as total_deal_value
+                 FROM accounts a LEFT JOIN prospects p ON p.account_id = a.id
+                 GROUP BY a.id ORDER BY a.name ASC''')
+    accounts = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({'success': True, 'data': accounts})
+
+@app.route('/api/accounts', methods=['POST'])
+@login_required
+def create_account():
+    data = request.json
+    conn = get_db()
+    c = conn.cursor()
+    now = datetime.now().isoformat()
+    c.execute('INSERT INTO accounts (name, website, industry, employee_count, headquarters_location, created_at, updated_at) VALUES (?,?,?,?,?,?,?)',
+              (data.get('name'), data.get('website'), data.get('industry'),
+               data.get('employee_count'), data.get('headquarters_location'), now, now))
+    account_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'id': account_id})
+
+@app.route('/api/accounts/<int:account_id>', methods=['GET'])
+@login_required
+def get_account(account_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT * FROM accounts WHERE id = ?', (account_id,))
+    account = c.fetchone()
+    if not account:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Account not found'}), 404
+    account = dict(account)
+    c.execute('SELECT * FROM prospects WHERE account_id = ? ORDER BY name ASC', (account_id,))
+    account['prospects'] = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify({'success': True, 'data': account})
+
+@app.route('/api/accounts/<int:account_id>', methods=['PUT'])
+@login_required
+def update_account(account_id):
+    data = request.json
+    conn = get_db()
+    c = conn.cursor()
+    fields = []
+    values = []
+    for f in ['name', 'website', 'industry', 'employee_count', 'headquarters_location']:
+        if f in data:
+            fields.append(f'{f} = ?')
+            values.append(data[f])
+    fields.append('updated_at = ?')
+    values.append(datetime.now().isoformat())
+    values.append(account_id)
+    c.execute(f"UPDATE accounts SET {', '.join(fields)} WHERE id = ?", values)
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/accounts/<int:account_id>', methods=['DELETE'])
+@login_required
+def delete_account(account_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('UPDATE prospects SET account_id = NULL WHERE account_id = ?', (account_id,))
+    c.execute('DELETE FROM accounts WHERE id = ?', (account_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/accounts/<int:account_id>/link-prospect', methods=['POST'])
+@login_required
+def link_prospect_to_account(account_id):
+    data = request.json
+    prospect_id = data.get('prospect_id')
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('UPDATE prospects SET account_id = ? WHERE id = ?', (account_id, prospect_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+# ─── Stock Symbols Management ────────────────────────────────────────────────
+
+@app.route('/api/stocks/symbols', methods=['GET'])
+@login_required
+def get_stock_symbols():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT symbol, added_at FROM user_stocks ORDER BY id ASC')
+    symbols = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({'success': True, 'data': symbols})
+
+@app.route('/api/stocks/symbols', methods=['POST'])
+@login_required
+def add_stock_symbol():
+    data = request.json
+    symbol = (data.get('symbol') or '').upper().strip()
+    if not symbol or len(symbol) > 5 or not symbol.isalpha():
+        return jsonify({'success': False, 'error': 'Invalid symbol (1-5 uppercase letters)'}), 400
+    conn = get_db()
+    c = conn.cursor()
+    try:
+        c.execute('INSERT INTO user_stocks (symbol, added_at) VALUES (?, ?)', (symbol, datetime.now().isoformat()))
+        conn.commit()
+    except Exception:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Symbol already exists'}), 409
+    conn.close()
+    return jsonify({'success': True, 'symbol': symbol})
+
+@app.route('/api/stocks/symbols/<symbol>', methods=['DELETE'])
+@login_required
+def remove_stock_symbol(symbol):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('DELETE FROM user_stocks WHERE symbol = ?', (symbol.upper(),))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+# ─── Email Sequences ─────────────────────────────────────────────────────────
+
+@app.route('/api/sequences', methods=['GET'])
+@login_required
+def get_sequences():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT * FROM email_sequences ORDER BY created_at DESC')
+    sequences = [dict(row) for row in c.fetchall()]
+    for seq in sequences:
+        c.execute('SELECT * FROM sequence_steps WHERE sequence_id = ? ORDER BY step_number ASC', (seq['id'],))
+        seq['steps'] = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({'success': True, 'data': sequences})
+
+@app.route('/api/sequences', methods=['POST'])
+@login_required
+def create_sequence():
+    data = request.json
+    conn = get_db()
+    c = conn.cursor()
+    now = datetime.now().isoformat()
+    c.execute('INSERT INTO email_sequences (name, description, is_active, created_at, updated_at) VALUES (?,?,1,?,?)',
+              (data.get('name'), data.get('description', ''), now, now))
+    seq_id = c.lastrowid
+    for i, step in enumerate(data.get('steps', []), 1):
+        c.execute('INSERT INTO sequence_steps (sequence_id, step_number, day_offset, subject_template, body_template, step_type) VALUES (?,?,?,?,?,?)',
+                  (seq_id, i, step.get('day_offset', 0), step.get('subject_template', ''),
+                   step.get('body_template', ''), step.get('step_type', 'email')))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'id': seq_id})
+
+@app.route('/api/sequences/<int:seq_id>', methods=['GET'])
+@login_required
+def get_sequence(seq_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT * FROM email_sequences WHERE id = ?', (seq_id,))
+    seq = c.fetchone()
+    if not seq:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Sequence not found'}), 404
+    seq = dict(seq)
+    c.execute('SELECT * FROM sequence_steps WHERE sequence_id = ? ORDER BY step_number ASC', (seq_id,))
+    seq['steps'] = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({'success': True, 'data': seq})
+
+@app.route('/api/sequences/<int:seq_id>', methods=['PUT'])
+@login_required
+def update_sequence(seq_id):
+    data = request.json
+    conn = get_db()
+    c = conn.cursor()
+    fields = []
+    values = []
+    for f in ['name', 'description', 'is_active']:
+        if f in data:
+            fields.append(f'{f} = ?')
+            values.append(data[f])
+    fields.append('updated_at = ?')
+    values.append(datetime.now().isoformat())
+    values.append(seq_id)
+    c.execute(f"UPDATE email_sequences SET {', '.join(fields)} WHERE id = ?", values)
+    if 'steps' in data:
+        c.execute('DELETE FROM sequence_steps WHERE sequence_id = ?', (seq_id,))
+        for i, step in enumerate(data['steps'], 1):
+            c.execute('INSERT INTO sequence_steps (sequence_id, step_number, day_offset, subject_template, body_template, step_type) VALUES (?,?,?,?,?,?)',
+                      (seq_id, i, step.get('day_offset', 0), step.get('subject_template', ''),
+                       step.get('body_template', ''), step.get('step_type', 'email')))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/sequences/<int:seq_id>', methods=['DELETE'])
+@login_required
+def delete_sequence(seq_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('DELETE FROM sequence_steps WHERE sequence_id = ?', (seq_id,))
+    c.execute('DELETE FROM prospect_sequences WHERE sequence_id = ?', (seq_id,))
+    c.execute('DELETE FROM email_sequences WHERE id = ?', (seq_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/prospects/<prospect_id>/enroll', methods=['POST'])
+@login_required
+def enroll_prospect_in_sequence(prospect_id):
+    data = request.json
+    seq_id = data.get('sequence_id')
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT * FROM sequence_steps WHERE sequence_id = ? ORDER BY step_number ASC', (seq_id,))
+    steps = [dict(row) for row in c.fetchall()]
+    if not steps:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Sequence has no steps'}), 400
+    now = datetime.now()
+    now_iso = now.isoformat()
+    c.execute('INSERT INTO prospect_sequences (prospect_id, sequence_id, enrolled_at, current_step, status) VALUES (?,?,?,1,?)',
+              (prospect_id, seq_id, now_iso, 'active'))
+    for step in steps:
+        task_due = (now + timedelta(days=step['day_offset'])).strftime('%Y-%m-%d')
+        task_id = f"t_{datetime.now().timestamp()}"
+        c.execute('INSERT INTO tasks (id, prospect_id, title, description, due_date, status, created_at, priority, category) VALUES (?,?,?,?,?,?,?,?,?)',
+                  (task_id, prospect_id, step['subject_template'] or f"Sequence Step {step['step_number']}",
+                   step['body_template'] or '', task_due, 'pending', now_iso, 'medium', step.get('step_type', 'email')))
+    conn.commit()
+    conn.close()
+    log_activity(prospect_id, 'sequence_enrolled', f'Enrolled in sequence #{seq_id}')
+    return jsonify({'success': True})
+
+@app.route('/api/prospects/<prospect_id>/sequences', methods=['GET'])
+@login_required
+def get_prospect_sequences(prospect_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT ps.*, es.name as sequence_name FROM prospect_sequences ps
+                 JOIN email_sequences es ON ps.sequence_id = es.id
+                 WHERE ps.prospect_id = ? ORDER BY ps.enrolled_at DESC''', (prospect_id,))
+    sequences = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({'success': True, 'data': sequences})
+
+# ─── Contact Enrichment ──────────────────────────────────────────────────────
+
+@app.route('/api/prospects/<prospect_id>/enrich', methods=['POST'])
+@login_required
+def enrich_prospect(prospect_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT * FROM prospects WHERE id = ?', (prospect_id,))
+    prospect = c.fetchone()
+    if not prospect:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Prospect not found'}), 404
+    prospect = dict(prospect)
+    enrichment = {}
+
+    # Email guessing
+    name = prospect.get('name', '')
+    company = prospect.get('company', '')
+    source = prospect.get('source', '')
+    if name and not prospect.get('email'):
+        domain = None
+        if source:
+            try:
+                domain = urlparse(source).netloc.replace('www.', '')
+            except Exception:
+                pass
+        if not domain and company:
+            domain = re.sub(r'[^a-z0-9]', '', company.lower()) + '.com'
+        if domain:
+            parts = name.strip().split()
+            if len(parts) >= 2:
+                first = parts[0].lower()
+                last = parts[-1].lower()
+                enrichment['email_guesses'] = [
+                    f"{first}.{last}@{domain}", f"{first[0]}{last}@{domain}",
+                    f"{first}@{domain}", f"{first}{last}@{domain}",
+                    f"{first}_{last}@{domain}", f"{first[0]}.{last}@{domain}",
+                    f"{last}.{first}@{domain}",
+                ]
+
+    # LinkedIn URL construction
+    if not prospect.get('linkedin_url') and name:
+        parts = name.strip().split()
+        if len(parts) >= 2:
+            slug = '-'.join(p.lower() for p in parts)
+            enrichment['linkedin_suggestion'] = f"https://www.linkedin.com/in/{slug}"
+
+    # Hunter.io email verification (if key configured)
+    hunter_key = os.environ.get('HUNTER_API_KEY', '')
+    if hunter_key and prospect.get('email'):
+        try:
+            resp = requests.get(f'https://api.hunter.io/v2/email-verifier?email={prospect["email"]}&api_key={hunter_key}', timeout=10)
+            hdata = resp.json().get('data', {})
+            enrichment['email_verification'] = {
+                'status': hdata.get('status', 'unknown'),
+                'score': hdata.get('score', 0),
+            }
+        except Exception:
+            enrichment['email_verification'] = {'status': 'error', 'score': 0}
+
+    # Clearbit company enrichment (if key configured)
+    clearbit_key = os.environ.get('CLEARBIT_API_KEY', '')
+    if clearbit_key and company:
+        domain_for_clearbit = None
+        if source:
+            try:
+                domain_for_clearbit = urlparse(source).netloc.replace('www.', '')
+            except Exception:
+                pass
+        if domain_for_clearbit:
+            try:
+                resp = requests.get(f'https://company.clearbit.com/v2/companies/find?domain={domain_for_clearbit}',
+                                    headers={'Authorization': f'Bearer {clearbit_key}'}, timeout=10)
+                if resp.status_code == 200:
+                    cdata = resp.json()
+                    enrichment['company_info'] = {
+                        'industry': cdata.get('category', {}).get('industry'),
+                        'employee_count': cdata.get('metrics', {}).get('employees'),
+                        'location': cdata.get('geo', {}).get('city'),
+                    }
+            except Exception:
+                pass
+
+    conn.close()
+    log_activity(prospect_id, 'enriched', 'Contact enrichment performed', enrichment)
+    return jsonify({'success': True, 'enrichment': enrichment})
+
+# ─── Gamification: Streaks & Challenges ──────────────────────────────────────
+
+@app.route('/api/streaks', methods=['GET'])
+@login_required
+def get_streaks():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT * FROM streaks LIMIT 1')
+    streak = c.fetchone()
+    if streak:
+        streak = dict(streak)
+    else:
+        streak = {'current_streak': 0, 'longest_streak': 0, 'last_active_date': None}
+    conn.close()
+    return jsonify({'success': True, **streak})
+
+@app.route('/api/challenges', methods=['GET'])
+@login_required
+def get_challenges():
+    conn = get_db()
+    c = conn.cursor()
+    today = datetime.now().strftime('%Y-%m-%d')
+    year, week, _ = datetime.now().isocalendar()
+    week_key = f'{year}-W{week:02d}'
+
+    c.execute('SELECT * FROM challenges WHERE is_active = 1')
+    challenges = []
+    for ch in c.fetchall():
+        ch = dict(ch)
+        date_key = today if ch['challenge_type'] == 'daily' else week_key
+        c.execute('SELECT current_count, completed FROM challenge_progress WHERE challenge_id = ? AND date_key = ?',
+                  (ch['id'], date_key))
+        progress = c.fetchone()
+        ch['current_count'] = progress['current_count'] if progress else 0
+        ch['completed'] = bool(progress['completed']) if progress else False
+        challenges.append(ch)
+    conn.close()
+    return jsonify({'success': True, 'data': challenges})
+
+@app.route('/api/leaderboard', methods=['GET'])
+@login_required
+def get_leaderboard():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT u.id, u.username, u.display_name, u.avatar,
+                 COALESCE(SUM(x.xp_earned), 0) as total_xp
+                 FROM users u LEFT JOIN xp_log x ON 1=1
+                 GROUP BY u.id ORDER BY total_xp DESC LIMIT 20''')
+    leaders = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({'success': True, 'data': leaders})
+
+# ─── Forum Moderation ────────────────────────────────────────────────────────
+
+@app.route('/api/forum/posts/<int:post_id>', methods=['PUT'])
+@login_required
+def edit_forum_post(post_id):
+    data = request.json
+    user_id = session.get('user_id')
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT user_id FROM forum_posts WHERE id = ?', (post_id,))
+    post = c.fetchone()
+    if not post:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Post not found'}), 404
+    c.execute('SELECT role FROM users WHERE id = ?', (user_id,))
+    user = c.fetchone()
+    is_admin = user and user['role'] in ('admin', 'moderator')
+    if post['user_id'] != user_id and not is_admin:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Not authorized'}), 403
+    c.execute('UPDATE forum_posts SET title = ?, body = ?, updated_at = ? WHERE id = ?',
+              (data.get('title'), data.get('body'), datetime.now().isoformat(), post_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/forum/posts/<int:post_id>', methods=['DELETE'])
+@login_required
+def delete_forum_post(post_id):
+    user_id = session.get('user_id')
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT user_id FROM forum_posts WHERE id = ?', (post_id,))
+    post = c.fetchone()
+    if not post:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Post not found'}), 404
+    c.execute('SELECT role FROM users WHERE id = ?', (user_id,))
+    user = c.fetchone()
+    is_admin = user and user['role'] in ('admin', 'moderator')
+    if post['user_id'] != user_id and not is_admin:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Not authorized'}), 403
+    c.execute('DELETE FROM forum_comments WHERE post_id = ?', (post_id,))
+    c.execute('DELETE FROM forum_posts WHERE id = ?', (post_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/forum/comments/<int:comment_id>', methods=['PUT'])
+@login_required
+def edit_forum_comment(comment_id):
+    data = request.json
+    user_id = session.get('user_id')
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT user_id FROM forum_comments WHERE id = ?', (comment_id,))
+    comment = c.fetchone()
+    if not comment:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Comment not found'}), 404
+    c.execute('SELECT role FROM users WHERE id = ?', (user_id,))
+    user = c.fetchone()
+    is_admin = user and user['role'] in ('admin', 'moderator')
+    if comment['user_id'] != user_id and not is_admin:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Not authorized'}), 403
+    c.execute('UPDATE forum_comments SET body = ? WHERE id = ?', (data.get('body'), comment_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/forum/comments/<int:comment_id>', methods=['DELETE'])
+@login_required
+def delete_forum_comment(comment_id):
+    user_id = session.get('user_id')
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT user_id FROM forum_comments WHERE id = ?', (comment_id,))
+    comment = c.fetchone()
+    if not comment:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Comment not found'}), 404
+    c.execute('SELECT role FROM users WHERE id = ?', (user_id,))
+    user = c.fetchone()
+    is_admin = user and user['role'] in ('admin', 'moderator')
+    if comment['user_id'] != user_id and not is_admin:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Not authorized'}), 403
+    c.execute('DELETE FROM forum_comments WHERE id = ?', (comment_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/forum/posts/<int:post_id>/report', methods=['POST'])
+@login_required
+def report_forum_post(post_id):
+    data = request.json
+    user_id = session.get('user_id')
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('INSERT INTO forum_reports (post_id, reporter_user_id, reason, created_at) VALUES (?,?,?,?)',
+              (post_id, user_id, data.get('reason', ''), datetime.now().isoformat()))
+    c.execute('UPDATE forum_posts SET is_reported = 1 WHERE id = ?', (post_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/forum/comments/<int:comment_id>/report', methods=['POST'])
+@login_required
+def report_forum_comment(comment_id):
+    data = request.json
+    user_id = session.get('user_id')
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('INSERT INTO forum_reports (comment_id, reporter_user_id, reason, created_at) VALUES (?,?,?,?)',
+              (comment_id, user_id, data.get('reason', ''), datetime.now().isoformat()))
+    c.execute('UPDATE forum_comments SET is_reported = 1 WHERE id = ?', (comment_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/admin/reports', methods=['GET'])
+@login_required
+def get_reports():
+    user_id = session.get('user_id')
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT role FROM users WHERE id = ?', (user_id,))
+    user = c.fetchone()
+    if not user or user['role'] not in ('admin', 'moderator'):
+        conn.close()
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    c.execute('SELECT * FROM forum_reports WHERE status = ? ORDER BY created_at DESC', ('pending',))
+    reports = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({'success': True, 'data': reports})
+
+@app.route('/api/admin/reports/<int:report_id>', methods=['PUT'])
+@login_required
+def resolve_report(report_id):
+    data = request.json
+    user_id = session.get('user_id')
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT role FROM users WHERE id = ?', (user_id,))
+    user = c.fetchone()
+    if not user or user['role'] not in ('admin', 'moderator'):
+        conn.close()
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    c.execute('UPDATE forum_reports SET status = ? WHERE id = ?', (data.get('status', 'reviewed'), report_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
 
 # ─── SocketIO Events ─────────────────────────────────────────────────────────
 

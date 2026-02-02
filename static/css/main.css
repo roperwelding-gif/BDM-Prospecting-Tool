@@ -198,23 +198,16 @@ header .container {
 }
 
 .logo-area img {
-    height: 110px;
+    height: 160px;
     filter: brightness(1.3) contrast(1.1) drop-shadow(0 0 12px rgba(0, 255, 65, 0.35));
     transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     mix-blend-mode: lighten;
-    border-radius: 12px;
-    backdrop-filter: blur(4px);
-    border: 1px solid rgba(0, 255, 65, 0.12);
-    padding: 6px;
-    background: rgba(0, 255, 65, 0.03);
-    box-shadow: 0 0 20px rgba(0, 255, 65, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    object-fit: contain;
 }
 
 .logo-area img:hover {
     filter: brightness(1.5) contrast(1.1) drop-shadow(0 0 25px rgba(0, 255, 65, 0.55)) drop-shadow(0 0 50px rgba(0, 255, 65, 0.2));
     transform: scale(1.06);
-    border-color: rgba(0, 255, 65, 0.25);
-    box-shadow: 0 0 30px rgba(0, 255, 65, 0.15), 0 0 60px rgba(0, 255, 65, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .header-actions {
@@ -525,10 +518,10 @@ button.small { padding: 4px 10px; font-size: 11px; }
 }
 
 .footer-logo-area img {
-    height: 35px;
+    height: 50px;
     filter: brightness(1.1) contrast(1.1);
     mix-blend-mode: lighten;
-    border-radius: 6px;
+    object-fit: contain;
 }
 
 .footer-legal {
@@ -1092,24 +1085,49 @@ button.small { padding: 4px 10px; font-size: 11px; }
 }
 .kanban-show-more:hover { color: var(--green); }
 
+/* Loading Skeletons */
+.skeleton {
+    background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-elevated) 50%, var(--bg-card) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+    border-radius: var(--radius);
+}
+@keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+.skeleton-line { height: 14px; margin-bottom: 8px; border-radius: 4px; }
+.skeleton-line.short { width: 60%; }
+.skeleton-line.medium { width: 80%; }
+.skeleton-card { height: 72px; margin-bottom: 8px; }
+.skeleton-chart { height: 180px; }
+
 /* Analytics */
 .analytics-section { margin-top: 24px; }
 .charts-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 14px;
+    gap: 10px;
+    animation: analyticsExpand 0.3s ease;
+}
+@keyframes analyticsExpand {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 .chart-card {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 16px;
+    padding: 12px;
+}
+.chart-card canvas {
+    max-height: 200px;
 }
 .chart-card h4 {
     color: var(--green);
     font-family: var(--font-mono);
     font-size: 11px;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -1919,16 +1937,221 @@ input:focus, textarea:focus, select:focus {
     opacity: 0;
 }
 
+/* ─── STALE LEAD INDICATORS ───────────────────────────────────── */
+.prospect-card.stale {
+    border-color: var(--red);
+    animation: stale-pulse 2s ease-in-out infinite;
+}
+@keyframes stale-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.2); }
+    50% { box-shadow: 0 0 12px 2px rgba(255, 68, 68, 0.15); }
+}
+.stale-badge {
+    background: var(--red);
+    color: white;
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    margin-left: 6px;
+    vertical-align: middle;
+}
+.kanban-card.stale { border-left: 3px solid var(--red); }
+
+/* ─── TASK PRIORITY & CATEGORY ───────────────────────────────── */
+.priority-dot { font-size: 10px; margin-right: 2px; }
+.category-icon { font-size: 12px; margin-right: 4px; opacity: 0.7; }
+.task-filter-bar { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
+.task-filter-btn {
+    padding: 3px 8px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: var(--transition);
+}
+.task-filter-btn.active, .task-filter-btn:hover { border-color: var(--green-dark); color: var(--green); }
+
+/* ─── ACTIVITY TIMELINE ──────────────────────────────────────── */
+.timeline { position: relative; padding-left: 28px; }
+.timeline::before { content: ''; position: absolute; left: 10px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+.timeline-event {
+    position: relative;
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    align-items: flex-start;
+}
+.timeline-icon {
+    position: absolute;
+    left: -24px;
+    top: 2px;
+    font-size: 12px;
+    width: 18px;
+    text-align: center;
+}
+.timeline-event-desc { font-size: 12px; color: var(--text); line-height: 1.3; }
+.timeline-event-time { font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); }
+
+/* ─── STREAK & CHALLENGES ────────────────────────────────────── */
+.streak-flame { animation: flame-pulse 1s ease-in-out infinite; display: inline-block; }
+@keyframes flame-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+.challenge-bar {
+    height: 4px;
+    background: var(--bg-secondary);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 2px;
+}
+.challenge-bar-fill {
+    height: 100%;
+    background: var(--green-dark);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+.challenge-bar-fill.completed { background: var(--green); }
+
+/* ─── STOCK SETTINGS POPUP ───────────────────────────────────── */
+.stock-settings-popup {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    width: 280px;
+    max-height: 400px;
+    overflow-y: auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 14px;
+    z-index: 200;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+/* ─── ENRICHMENT BADGES ──────────────────────────────────────── */
+.enrich-verified { color: var(--green); font-size: 11px; }
+.enrich-unverified { color: var(--yellow); font-size: 11px; }
+
+/* ─── SEQUENCE BUILDER ────────────────────────────────────────── */
+.sequences-section { padding: 0; }
+.sequences-section h3 { font-family: var(--font-mono); font-size: 14px; color: var(--green); margin-bottom: 12px; }
+.sequence-card { transition: var(--transition); }
+.sequence-card:hover { border-color: var(--green-dim); }
+.seq-step-row { animation: fadeIn 0.2s ease; }
+
+/* ─── STOCK SETTINGS GEAR BUTTON ──────────────────────────────── */
+.stock-ticker { position: relative; }
+.stock-settings-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 16px;
+    cursor: pointer;
+    z-index: 2;
+    padding: 4px;
+    transition: color 0.2s;
+}
+.stock-settings-btn:hover { color: var(--green); }
+
+/* ─── MOBILE BOTTOM NAV ─────────────────────────────────────── */
+.mobile-bottom-nav { display: none; }
+
 /* ─── RESPONSIVE ───────────────────────────────────────────────── */
 @media (max-width: 768px) {
+    /* Layout */
     .input-row { grid-template-columns: 1fr; }
     .add-task-form { grid-template-columns: 1fr; }
     .prospect-card { grid-template-columns: auto auto 1fr; }
     .prospect-actions { grid-column: 1 / -1; opacity: 1; }
-    .side-drawer { width: 100%; right: -100%; }
-    .chat-window { width: 300px; }
     .news-columns { grid-template-columns: 1fr; }
     .tweets-grid { grid-template-columns: 1fr 1fr; }
+
+    /* Mobile Bottom Nav */
+    .mobile-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--bg-card);
+        border-top: 1px solid var(--border);
+        z-index: 1000;
+        padding: 4px 0 env(safe-area-inset-bottom, 4px);
+    }
+    .mobile-nav-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 8px 4px;
+        background: none;
+        border: none;
+        color: var(--text-dim);
+        font-size: 18px;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+    .mobile-nav-btn small { font-size: 9px; font-family: var(--font-mono); }
+    .mobile-nav-btn.active { color: var(--green); }
+    body { padding-bottom: 70px; }
+
+    /* Slide-up Drawer */
+    .side-drawer {
+        top: auto;
+        bottom: -100%;
+        right: 0;
+        width: 100%;
+        height: 90vh;
+        border-radius: 16px 16px 0 0;
+        transition: bottom 0.3s ease;
+    }
+    .side-drawer.open { bottom: 0; }
+
+    /* Swipeable Kanban */
+    .kanban-board {
+        display: flex !important;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        gap: 0;
+        padding-bottom: 8px;
+    }
+    .kanban-column {
+        min-width: 85vw;
+        scroll-snap-align: start;
+        flex-shrink: 0;
+    }
+
+    /* Touch Targets */
+    .tab, .view-btn, button.small, .task-filter-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    input, select, textarea { font-size: 16px; } /* prevent iOS zoom */
+
+    /* Header */
+    .header-actions { flex-wrap: wrap; gap: 4px; }
+    .logo-area img { height: 80px; }
+
+    /* Chat Widget */
+    .chat-window { width: calc(100vw - 24px); right: -8px; }
+
+    /* Task filter bar responsive */
+    .task-filter-bar { flex-wrap: wrap; gap: 4px; }
+
+    /* Sequence builder responsive */
+    .sequence-builder > div { flex-wrap: wrap; }
+
+    /* XP extras responsive */
+    .xp-extras { flex-direction: column; align-items: flex-start !important; gap: 4px !important; }
 }
 
 @media (max-width: 480px) {

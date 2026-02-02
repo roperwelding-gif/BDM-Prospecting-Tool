@@ -7,6 +7,7 @@
 <!-- ═══════════════ STOCK TICKER ═══════════════ -->
 <div class="stock-ticker" id="stock-ticker">
     <div class="ticker-track" id="ticker-track"></div>
+    <button class="stock-settings-btn" onclick="openStockSettings()" title="Manage stock symbols">&#9881;</button>
 </div>
 
 <!-- ═══════════════ HEADER ═══════════════ -->
@@ -61,6 +62,10 @@
                 <div class="xp-bar-fill tier-bronze" id="xp-bar-fill" style="width: 0%"></div>
             </div>
             <div class="xp-recent-action" id="xp-recent-action"></div>
+        </div>
+        <div class="xp-extras" style="display:flex;gap:16px;align-items:center;margin-top:4px;">
+            <div id="xp-streak" style="font-size:11px;font-family:var(--font-mono);"></div>
+            <div id="xp-challenges" style="flex:1;font-size:10px;"></div>
         </div>
     </div>
 </div>
@@ -154,9 +159,9 @@
     <div class="analytics-section reveal" id="analytics-section">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
             <h3 style="margin:0;">// Analytics</h3>
-            <button class="secondary small" onclick="loadAnalytics()">Refresh</button>
+            <button class="secondary small" id="analytics-toggle-btn" onclick="toggleAnalytics()">Run Analytics</button>
         </div>
-        <div class="charts-grid">
+        <div class="charts-grid" id="charts-grid" style="display:none;">
             <div class="chart-card">
                 <h4>Pipeline Funnel</h4>
                 <canvas id="funnel-chart"></canvas>
@@ -221,9 +226,54 @@
                     <div class="prospect-search-dropdown" id="prospect-search-dropdown"></div>
                 </div>
             </div>
+            <div class="input-group">
+                <label>Priority</label>
+                <select id="new-task-priority">
+                    <option value="medium">&#128992; Medium</option>
+                    <option value="high">&#128308; High</option>
+                    <option value="low">&#128994; Low</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>Category</label>
+                <select id="new-task-category">
+                    <option value="general">&#9733; General</option>
+                    <option value="call">&#128222; Call</option>
+                    <option value="email">&#9993; Email</option>
+                    <option value="meeting">&#128197; Meeting</option>
+                    <option value="research">&#128269; Research</option>
+                </select>
+            </div>
             <button class="primary small" onclick="addGlobalTask()">Add</button>
         </div>
+        <div class="task-filter-bar">
+            <span style="font-size:10px;color:var(--text-dim);margin-right:4px;">Priority:</span>
+            <button class="task-filter-btn active" onclick="setTaskFilter('priority','all')">All</button>
+            <button class="task-filter-btn" onclick="setTaskFilter('priority','high')">&#128308; High</button>
+            <button class="task-filter-btn" onclick="setTaskFilter('priority','medium')">&#128992; Med</button>
+            <button class="task-filter-btn" onclick="setTaskFilter('priority','low')">&#128994; Low</button>
+            <span style="font-size:10px;color:var(--text-dim);margin:0 4px 0 12px;">Category:</span>
+            <button class="task-filter-btn active" onclick="setTaskFilter('category','all')">All</button>
+            <button class="task-filter-btn" onclick="setTaskFilter('category','call')">&#128222; Call</button>
+            <button class="task-filter-btn" onclick="setTaskFilter('category','email')">&#9993; Email</button>
+            <button class="task-filter-btn" onclick="setTaskFilter('category','meeting')">&#128197; Meet</button>
+            <button class="task-filter-btn" onclick="setTaskFilter('category','research')">&#128269; Research</button>
+        </div>
         <div id="global-tasks-list"></div>
+    </div>
+
+    <!-- Sequence Builder -->
+    <div class="sequences-section reveal" id="sequences-section">
+        <h3>// Email Sequences</h3>
+        <div class="sequence-builder" style="margin-bottom:16px;">
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+                <input type="text" id="seq-name" placeholder="Sequence name..." style="flex:1;padding:8px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;" />
+                <button class="secondary small" onclick="addSequenceStep()">+ Step</button>
+                <button class="primary small" onclick="createSequence()">Create</button>
+            </div>
+            <div id="seq-steps-container"></div>
+        </div>
+        <div id="sequences-list"></div>
     </div>
 
     <!-- Bulk Actions Bar -->
@@ -534,5 +584,24 @@
         <div class="chat-badge" id="chat-badge">0</div>
     </div>
 </div>
+
+<!-- ═══════════════ MOBILE BOTTOM NAV ═══════════════ -->
+<nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+    <button class="mobile-nav-btn active" onclick="mobileNav('prospects')">
+        <span>&#128101;</span><small>Prospects</small>
+    </button>
+    <button class="mobile-nav-btn" onclick="mobileNav('board')">
+        <span>&#128203;</span><small>Board</small>
+    </button>
+    <button class="mobile-nav-btn" onclick="mobileNav('tasks')">
+        <span>&#9745;</span><small>Tasks</small>
+    </button>
+    <button class="mobile-nav-btn" onclick="mobileNav('forum')">
+        <span>&#128172;</span><small>Forum</small>
+    </button>
+    <button class="mobile-nav-btn" onclick="mobileNav('more')">
+        <span>&#9776;</span><small>More</small>
+    </button>
+</nav>
 
 {% endblock %}

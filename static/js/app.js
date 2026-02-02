@@ -50,6 +50,16 @@ window.fetch = function(url, opts = {}) {
 
 let isLoggedIn = false;
 
+// ─── SKELETON LOADING HELPERS ─────────────────────────────────────────────
+function skeletonHTML(type, count = 3) {
+    if (type === 'card') return Array(count).fill('<div class="skeleton skeleton-card"></div>').join('');
+    if (type === 'line') return Array(count).fill('<div class="skeleton skeleton-line"></div>').join('');
+    if (type === 'lines') return Array(count).fill(0).map((_, i) =>
+        `<div class="skeleton skeleton-line${i % 3 === 2 ? ' short' : i % 2 === 1 ? ' medium' : ''}"></div>`).join('');
+    if (type === 'chart') return '<div class="skeleton skeleton-chart"></div>';
+    return '';
+}
+
 function showLoginPrompt() {
     const loginBar = document.getElementById('header-login-bar');
     if (loginBar) loginBar.style.display = 'flex';
@@ -300,6 +310,12 @@ function renderTweetsColumn(cat, tweets) {
 }
 
 async function initNews() {
+    // Show skeletons while news loads
+    ['financial-news-inner', 'top-news-inner'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = skeletonHTML('lines', 6);
+    });
+
     // Fetch live financial news
     try {
         const finRes = await fetch(`${API_BASE}/news?category=financial`);
@@ -334,26 +350,8 @@ async function initNews() {
         renderNewsColumn('top-news-inner', topNewsData);
     }
 
-    // Fetch live tweets via Nitter RSS
-    try {
-        const tRes = await fetch(`${API_BASE}/tweets`);
-        const tData = await tRes.json();
-        const categories = ['politics', 'finance', 'crypto', 'global'];
-        if (tData.success && tData.tweets) {
-            categories.forEach(cat => {
-                const tweets = tData.tweets[cat];
-                if (tweets && tweets.length > 0) {
-                    renderTweetsColumn(cat, tweets);
-                } else {
-                    renderTweetsColumn(cat, tweetsData[cat]);
-                }
-            });
-        } else {
-            categories.forEach(cat => renderTweetsColumn(cat, tweetsData[cat]));
-        }
-    } catch(e) {
-        ['politics', 'finance', 'crypto', 'global'].forEach(cat => renderTweetsColumn(cat, tweetsData[cat]));
-    }
+    // Render hardcoded tweets (Nitter RSS removed — unstable)
+    ['politics', 'finance', 'crypto', 'global'].forEach(cat => renderTweetsColumn(cat, tweetsData[cat]));
 
     // Start auto-scroll
     startNewsAutoScroll();
@@ -421,7 +419,7 @@ async function loadSauceAlerts(forceRefresh = false) {
         refreshBtn.disabled = true;
         refreshBtn.textContent = 'Scanning...';
     }
-    grid.innerHTML = '<div class="sauce-empty">&#128270; Scanning for buy signals...</div>';
+    grid.innerHTML = skeletonHTML('card', 3);
     try {
         const url = forceRefresh ? `${API_BASE}/sauce?refresh=1` : `${API_BASE}/sauce`;
         const res = await fetch(url);
@@ -478,6 +476,28 @@ function updateXPDisplay(data) {
     if (data.recent_actions && data.recent_actions.length > 0) {
         const recent = data.recent_actions[0];
         document.getElementById('xp-recent-action').textContent = `Last: +${recent.xp_earned}XP ${recent.action.replace(/_/g, ' ')}`;
+    }
+    // Streak display
+    const streakEl = document.getElementById('xp-streak');
+    if (streakEl && data.streak) {
+        const s = data.streak;
+        streakEl.innerHTML = s.current_streak > 0
+            ? `<span class="streak-flame">&#128293;</span> ${s.current_streak} day streak`
+            : '<span style="color:var(--text-dim);">No streak</span>';
+    }
+    // Challenge display
+    const challengeEl = document.getElementById('xp-challenges');
+    if (challengeEl && data.challenges) {
+        challengeEl.innerHTML = data.challenges.slice(0, 3).map(ch => {
+            const pct = Math.min(100, Math.round((ch.current_count / ch.target_count) * 100));
+            return `<div class="challenge-item" style="margin-bottom:4px;">
+                <div style="display:flex;justify-content:space-between;font-size:10px;">
+                    <span>${esc(ch.title)}${ch.completed ? ' &#9989;' : ''}</span>
+                    <span style="color:var(--text-dim);">${ch.current_count}/${ch.target_count} (+${ch.xp_reward}XP)</span>
+                </div>
+                <div class="challenge-bar"><div class="challenge-bar-fill${ch.completed ? ' completed' : ''}" style="width:${pct}%;"></div></div>
+            </div>`;
+        }).join('');
     }
 }
 
@@ -836,7 +856,7 @@ async function viewForumPost(postId) {
     document.getElementById('forum-create-form').style.display = 'none';
     const detail = document.getElementById('forum-post-detail');
     detail.style.display = 'block';
-    detail.innerHTML = '<div class="forum-empty">Loading...</div>';
+    detail.innerHTML = '<div class="forum-empty">' + skeletonHTML('lines', 5) + '</div>';
 
     try {
         const res = await fetch(`${API_BASE}/forum/posts/${postId}`, { credentials: 'same-origin' });
@@ -857,6 +877,10 @@ async function viewForumPost(postId) {
                     </div>
                     <div class="post-body">${esc(p.body)}</div>
                     ${p.signature ? `<div class="post-signature">${esc(p.signature)}</div>` : ''}
+                    <div style="display:flex;gap:6px;margin-top:8px;">
+                        ${currentUser && (currentUser.id === p.user_id || currentUser.role === 'admin') ? `<button class="secondary small" onclick="editForumPost(${p.id}, '${esc(p.title).replace(/'/g,"\\'")}', '${esc(p.body).replace(/'/g,"\\'")}')">Edit</button><button class="danger small" onclick="deleteForumPost(${p.id})">Delete</button>` : ''}
+                        ${currentUser ? `<button class="secondary small" onclick="reportForumPost(${p.id})" style="font-size:10px;">Report</button>` : ''}
+                    </div>
                 </div>
 
                 <h3 style="font-family:var(--font-mono);font-size:13px;color:var(--green-dim);margin-bottom:12px;">
@@ -872,6 +896,10 @@ async function viewForumPost(postId) {
                         </div>
                         <div class="comment-body">${esc(c.body)}</div>
                         ${c.signature ? `<div class="comment-signature">${esc(c.signature)}</div>` : ''}
+                        <div style="display:flex;gap:4px;margin-top:4px;">
+                            ${currentUser && (currentUser.id === c.user_id || currentUser.role === 'admin') ? `<button class="secondary small" style="font-size:9px;padding:2px 6px;" onclick="deleteForumComment(${c.id}, ${postId})">Del</button>` : ''}
+                            ${currentUser ? `<button class="secondary small" style="font-size:9px;padding:2px 6px;" onclick="reportForumComment(${c.id})">Report</button>` : ''}
+                        </div>
                     </div>
                 `).join('')}
 
@@ -946,6 +974,61 @@ async function submitForumComment(postId) {
     } catch {}
 }
 
+async function editForumPost(postId, title, body) {
+    const newTitle = prompt('Edit title:', title);
+    if (newTitle === null) return;
+    const newBody = prompt('Edit body:', body);
+    if (newBody === null) return;
+    try {
+        await fetch(`${API_BASE}/forum/posts/${postId}`, {
+            method: 'PUT', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ title: newTitle, body: newBody })
+        });
+        viewForumPost(postId);
+    } catch {}
+}
+
+async function deleteForumPost(postId) {
+    if (!confirm('Delete this post?')) return;
+    try {
+        await fetch(`${API_BASE}/forum/posts/${postId}`, { method: 'DELETE' });
+        showForumList();
+        loadForumPosts();
+    } catch {}
+}
+
+async function deleteForumComment(commentId, postId) {
+    if (!confirm('Delete this comment?')) return;
+    try {
+        await fetch(`${API_BASE}/forum/comments/${commentId}`, { method: 'DELETE' });
+        viewForumPost(postId);
+    } catch {}
+}
+
+async function reportForumPost(postId) {
+    const reason = prompt('Reason for reporting:');
+    if (!reason) return;
+    try {
+        await fetch(`${API_BASE}/forum/posts/${postId}/report`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ reason })
+        });
+        showStatus('Post reported', 'success');
+    } catch {}
+}
+
+async function reportForumComment(commentId) {
+    const reason = prompt('Reason for reporting:');
+    if (!reason) return;
+    try {
+        await fetch(`${API_BASE}/forum/comments/${commentId}/report`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ reason })
+        });
+        showStatus('Comment reported', 'success');
+    } catch {}
+}
+
 function formatForumTime(isoString) {
     if (!isoString) return '';
     const diff = Date.now() - new Date(isoString).getTime();
@@ -1005,7 +1088,7 @@ async function init() {
     loadAllTasks();
     loadSauceAlerts();
     loadXP();
-    loadAnalytics();
+    loadSequences();
     initChat();
 
     document.getElementById('add-prospect-btn').addEventListener('click', openModal);
@@ -1192,12 +1275,13 @@ function displayProspects() {
     let html = prospects.map(p => {
         const warmth = p.warmth_score || 0;
         const warmthClass = warmth >= 70 ? 'warmth-hot' : warmth >= 40 ? 'warmth-warm' : 'warmth-cold';
+        const staleClass = p.is_stale ? ' stale' : '';
         return `
-        <div class="prospect-card ${p.source ? 'crawled' : ''} ${selectedProspectsForBulkAdd.has(p.id) ? 'selected' : ''}" onclick="openDrawer('${p.id}')">
+        <div class="prospect-card ${p.source ? 'crawled' : ''}${staleClass} ${selectedProspectsForBulkAdd.has(p.id) ? 'selected' : ''}" onclick="openDrawer('${p.id}')">
             <input type="checkbox" class="prospect-checkbox" ${selectedProspectsForBulkAdd.has(p.id) ? 'checked' : ''} onclick="event.stopPropagation()" onchange="toggleProspectSelection('${p.id}', this.checked)" />
             <div class="warmth-dot ${warmthClass}" title="Warmth: ${warmth}"></div>
             <div class="prospect-info">
-                <h3>${esc(p.name)}</h3>
+                <h3>${esc(p.name)}${p.is_stale ? ' <span class="stale-badge">OVERDUE ' + p.days_in_status + 'd</span>' : ''}</h3>
                 <p><strong>${esc(p.company)}</strong>${p.title ? ' &middot; ' + esc(p.title) : ''}</p>
                 <div class="prospect-meta">
                     <span class="stage-badge stage-${p.status}">${p.status}</span>
@@ -1345,8 +1429,8 @@ async function renderKanban() {
         const hidden = stageProspects.length - visible.length;
 
         container.innerHTML = visible.map(p => `
-            <div class="kanban-card" data-id="${p.id}" onclick="openDrawer('${p.id}')">
-                <div class="kc-name">${esc(p.name)}</div>
+            <div class="kanban-card${p.is_stale ? ' stale' : ''}" data-id="${p.id}" onclick="openDrawer('${p.id}')">
+                <div class="kc-name">${esc(p.name)}${p.is_stale ? ' <span class="stale-badge">OVERDUE</span>' : ''}</div>
                 <div class="kc-company">${esc(p.company || '')}</div>
                 <div class="kc-value">$${(p.deal_size || 0).toLocaleString()}</div>
             </div>
@@ -1398,6 +1482,16 @@ function expandKanbanColumn(stage) {
 
 // ─── ANALYTICS ────────────────────────────────────────────────────────────
 let chartInstances = {};
+let analyticsExpanded = false;
+
+function toggleAnalytics() {
+    const grid = document.getElementById('charts-grid');
+    const btn = document.getElementById('analytics-toggle-btn');
+    analyticsExpanded = !analyticsExpanded;
+    grid.style.display = analyticsExpanded ? 'grid' : 'none';
+    btn.textContent = analyticsExpanded ? 'Collapse' : 'Run Analytics';
+    if (analyticsExpanded) loadAnalytics();
+}
 
 async function loadAnalytics() {
     try {
@@ -1702,11 +1796,31 @@ function openDrawer(prospectId) {
             <div id="icebreaker-results-${p.id}"></div>
         </div>
 
+        <!-- Enrichment -->
+        <div class="drawer-section">
+            <div class="drawer-section-title">Contact Enrichment</div>
+            <button class="secondary small" onclick="enrichContact('${p.id}')" id="enrich-btn-${p.id}">Enrich Contact</button>
+            <div id="enrich-results-${p.id}"></div>
+        </div>
+
+        <!-- Sequences -->
+        <div class="drawer-section">
+            <div class="drawer-section-title">Email Sequences</div>
+            <button class="secondary small" onclick="showSequenceEnroll('${p.id}')" style="margin-bottom:8px;">Assign Sequence</button>
+            <div id="drawer-sequences-${p.id}">${skeletonHTML('line', 2)}</div>
+        </div>
+
         <!-- Tasks -->
         <div class="drawer-section">
             <div class="drawer-section-title">Tasks & Reminders</div>
             <button class="secondary small" onclick="openTaskModal('${p.id}')" style="margin-bottom:8px;">+ Add Task</button>
-            <div id="drawer-tasks-${p.id}">Loading...</div>
+            <div id="drawer-tasks-${p.id}">${skeletonHTML('card', 2)}</div>
+        </div>
+
+        <!-- Activity Timeline -->
+        <div class="drawer-section">
+            <div class="drawer-section-title">Activity Timeline</div>
+            <div id="drawer-timeline-${p.id}">${skeletonHTML('lines', 4)}</div>
         </div>
     `;
 
@@ -1714,11 +1828,286 @@ function openDrawer(prospectId) {
     document.getElementById('side-drawer').classList.add('active');
 
     loadDrawerTasks(p.id);
+    loadDrawerTimeline(p.id);
+    loadDrawerSequences(p.id);
 }
 
 function closeDrawer() {
     document.getElementById('drawer-overlay').classList.remove('active');
     document.getElementById('side-drawer').classList.remove('active');
+}
+
+// ─── DRAWER: Activity Timeline ────────────────────────────────────────────
+async function loadDrawerTimeline(prospectId) {
+    const container = document.getElementById(`drawer-timeline-${prospectId}`);
+    if (!container) return;
+    try {
+        const res = await fetch(`${API_BASE}/prospects/${prospectId}/activity`);
+        const data = await res.json();
+        if (data.success && data.data.length > 0) {
+            const EVENT_ICONS = { created: '&#10024;', status_change: '&#8644;', task_completed: '&#9989;', task_created: '&#9744;',
+                                  enriched: '&#128269;', sequence_enrolled: '&#9993;', note: '&#128221;' };
+            container.innerHTML = '<div class="timeline">' + data.data.slice(0, 20).map(e => {
+                const icon = EVENT_ICONS[e.event_type] || '&#8226;';
+                const timeAgo = formatTimeAgo(e.created_at);
+                return `<div class="timeline-event">
+                    <span class="timeline-icon">${icon}</span>
+                    <div class="timeline-content">
+                        <div class="timeline-event-desc">${esc(e.description || e.event_type)}</div>
+                        <div class="timeline-event-time">${timeAgo}</div>
+                    </div>
+                </div>`;
+            }).join('') + '</div>';
+        } else {
+            container.innerHTML = '<p style="font-size:11px;color:var(--text-dim);">No activity yet</p>';
+        }
+    } catch { container.innerHTML = '<p style="font-size:11px;color:var(--text-dim);">Could not load timeline</p>'; }
+}
+
+function formatTimeAgo(isoStr) {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    const now = new Date();
+    const diff = Math.floor((now - d) / 1000);
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+    return d.toLocaleDateString();
+}
+
+// ─── DRAWER: Contact Enrichment ───────────────────────────────────────────
+async function enrichContact(prospectId) {
+    const btn = document.getElementById(`enrich-btn-${prospectId}`);
+    const results = document.getElementById(`enrich-results-${prospectId}`);
+    btn.disabled = true;
+    btn.textContent = 'Enriching...';
+    results.innerHTML = skeletonHTML('lines', 3);
+    try {
+        const res = await fetch(`${API_BASE}/prospects/${prospectId}/enrich`, {
+            method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}'
+        });
+        const data = await res.json();
+        if (data.success) {
+            let html = '';
+            const e = data.enrichment;
+            if (e.email_guesses && e.email_guesses.length > 0) {
+                html += '<div style="margin-top:8px;"><strong style="font-size:11px;color:var(--green);">Email Guesses:</strong>';
+                html += e.email_guesses.map(em => `<div style="font-size:11px;color:var(--text-dim);padding:2px 0;">${esc(em)}</div>`).join('');
+                html += '</div>';
+            }
+            if (e.linkedin_suggestion) {
+                html += `<div style="margin-top:6px;font-size:11px;"><strong style="color:var(--green);">LinkedIn:</strong> <a href="${esc(e.linkedin_suggestion)}" target="_blank" style="color:var(--blue);">${esc(e.linkedin_suggestion)}</a></div>`;
+            }
+            if (e.email_verification) {
+                const status = e.email_verification.status;
+                const badge = status === 'valid' ? '&#9989; Verified' : status === 'invalid' ? '&#10060; Invalid' : '&#10067; ' + status;
+                html += `<div style="margin-top:6px;font-size:11px;"><strong style="color:var(--green);">Email Verification:</strong> ${badge}</div>`;
+            }
+            if (e.company_info) {
+                html += `<div style="margin-top:6px;font-size:11px;"><strong style="color:var(--green);">Company:</strong> ${esc(e.company_info.industry || '')} | ${e.company_info.employee_count || '?'} employees</div>`;
+            }
+            results.innerHTML = html || '<p style="font-size:11px;color:var(--text-dim);">No additional data found</p>';
+        }
+    } catch {
+        results.innerHTML = '<p style="font-size:11px;color:var(--red);">Enrichment failed</p>';
+    }
+    btn.disabled = false;
+    btn.textContent = 'Enrich Contact';
+}
+
+// ─── DRAWER: Sequences ────────────────────────────────────────────────────
+async function loadDrawerSequences(prospectId) {
+    const container = document.getElementById(`drawer-sequences-${prospectId}`);
+    if (!container) return;
+    try {
+        const res = await fetch(`${API_BASE}/prospects/${prospectId}/sequences`);
+        const data = await res.json();
+        if (data.success && data.data.length > 0) {
+            container.innerHTML = data.data.map(s => `
+                <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:11px;">
+                    <strong style="color:var(--green);">${esc(s.sequence_name)}</strong>
+                    <span class="stage-badge stage-${s.status}" style="margin-left:6px;">${s.status}</span>
+                    <span style="color:var(--text-dim);margin-left:6px;">Step ${s.current_step}</span>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<p style="font-size:11px;color:var(--text-dim);">No sequences assigned</p>';
+        }
+    } catch { container.innerHTML = ''; }
+}
+
+async function showSequenceEnroll(prospectId) {
+    try {
+        const res = await fetch(`${API_BASE}/sequences`);
+        const data = await res.json();
+        if (data.success && data.data.length > 0) {
+            const container = document.getElementById(`drawer-sequences-${prospectId}`);
+            container.innerHTML = '<div style="margin-bottom:8px;">' + data.data.map(s =>
+                `<button class="secondary small" style="margin:2px;" onclick="enrollInSequence('${prospectId}', ${s.id})">${esc(s.name)}</button>`
+            ).join('') + '</div>';
+        } else {
+            showStatus('No sequences created yet. Create one in the Sequences section.', 'info');
+        }
+    } catch { showStatus('Could not load sequences', 'error'); }
+}
+
+async function enrollInSequence(prospectId, sequenceId) {
+    try {
+        const res = await fetch(`${API_BASE}/prospects/${prospectId}/enroll`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ sequence_id: sequenceId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showStatus('Prospect enrolled in sequence! Tasks created.', 'success');
+            loadDrawerSequences(prospectId);
+            loadDrawerTasks(prospectId);
+            loadAllTasks();
+        } else {
+            showStatus(data.error || 'Enrollment failed', 'error');
+        }
+    } catch { showStatus('Enrollment failed', 'error'); }
+}
+
+// ─── STOCK TICKER SETTINGS ────────────────────────────────────────────────
+async function openStockSettings() {
+    const existing = document.getElementById('stock-settings-popup');
+    if (existing) { existing.remove(); return; }
+    const popup = document.createElement('div');
+    popup.id = 'stock-settings-popup';
+    popup.className = 'stock-settings-popup';
+    popup.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong style="color:var(--green);font-size:12px;">Stock Symbols</strong><button class="secondary small" onclick="document.getElementById(\'stock-settings-popup\').remove()">&#x2715;</button></div><div id="stock-symbols-list">' + skeletonHTML('lines', 3) + '</div><div style="display:flex;gap:4px;margin-top:8px;"><input id="new-stock-symbol" placeholder="SYMBOL" maxlength="5" style="flex:1;padding:6px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;text-transform:uppercase;" /><button class="primary small" onclick="addStockSymbol()">Add</button></div>';
+    document.body.appendChild(popup);
+    loadStockSymbols();
+}
+
+async function loadStockSymbols() {
+    try {
+        const res = await fetch(`${API_BASE}/stocks/symbols`);
+        const data = await res.json();
+        if (data.success) {
+            const container = document.getElementById('stock-symbols-list');
+            container.innerHTML = data.data.map(s =>
+                `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11px;"><span style="color:var(--green);font-family:var(--font-mono);">${esc(s.symbol)}</span><button class="danger small" style="padding:2px 6px;font-size:9px;" onclick="removeStockSymbol('${s.symbol}')">&#x2715;</button></div>`
+            ).join('');
+        }
+    } catch {}
+}
+
+async function addStockSymbol() {
+    const input = document.getElementById('new-stock-symbol');
+    const symbol = input.value.trim().toUpperCase();
+    if (!symbol) return;
+    try {
+        const res = await fetch(`${API_BASE}/stocks/symbols`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ symbol })
+        });
+        const data = await res.json();
+        if (data.success) { input.value = ''; loadStockSymbols(); }
+        else showStatus(data.error || 'Failed to add', 'error');
+    } catch {}
+}
+
+async function removeStockSymbol(symbol) {
+    try {
+        await fetch(`${API_BASE}/stocks/symbols/${symbol}`, { method: 'DELETE' });
+        loadStockSymbols();
+    } catch {}
+}
+
+// ─── SEQUENCE BUILDER ─────────────────────────────────────────────────────
+async function loadSequences() {
+    const container = document.getElementById('sequences-list');
+    if (!container) return;
+    try {
+        const res = await fetch(`${API_BASE}/sequences`);
+        const data = await res.json();
+        if (data.success) {
+            if (data.data.length === 0) {
+                container.innerHTML = '<p style="font-size:12px;color:var(--text-dim);text-align:center;">No sequences yet. Create your first one!</p>';
+                return;
+            }
+            container.innerHTML = data.data.map(s => `
+                <div class="sequence-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <strong style="color:var(--green);font-size:13px;">${esc(s.name)}</strong>
+                        <button class="danger small" onclick="deleteSequence(${s.id})">Delete</button>
+                    </div>
+                    <p style="font-size:11px;color:var(--text-dim);margin:4px 0;">${esc(s.description || '')}</p>
+                    <div style="font-size:10px;color:var(--text-dim);">${s.steps.length} steps: ${s.steps.map(st => 'Day ' + st.day_offset + ' - ' + (st.step_type || 'email')).join(', ')}</div>
+                </div>
+            `).join('');
+        }
+    } catch {}
+}
+
+async function createSequence() {
+    const name = (document.getElementById('seq-name') || {}).value?.trim();
+    if (!name) { showStatus('Enter a sequence name', 'error'); return; }
+    const steps = [];
+    document.querySelectorAll('.seq-step-row').forEach(row => {
+        steps.push({
+            day_offset: parseInt(row.querySelector('.seq-day').value) || 0,
+            subject_template: row.querySelector('.seq-subject').value.trim(),
+            body_template: row.querySelector('.seq-body').value.trim(),
+            step_type: row.querySelector('.seq-type').value || 'email'
+        });
+    });
+    if (steps.length === 0) { showStatus('Add at least one step', 'error'); return; }
+    try {
+        const res = await fetch(`${API_BASE}/sequences`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ name, description: '', steps })
+        });
+        const data = await res.json();
+        if (data.success) { showStatus('Sequence created!', 'success'); loadSequences(); }
+    } catch { showStatus('Failed to create sequence', 'error'); }
+}
+
+function addSequenceStep() {
+    const container = document.getElementById('seq-steps-container');
+    if (!container) return;
+    const idx = container.children.length;
+    const row = document.createElement('div');
+    row.className = 'seq-step-row';
+    row.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;align-items:center;';
+    row.innerHTML = `
+        <input class="seq-day" type="number" min="0" value="${idx * 3}" placeholder="Day" style="width:50px;padding:6px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:11px;" />
+        <select class="seq-type" style="padding:6px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:11px;">
+            <option value="email">Email</option><option value="call">Call</option><option value="linkedin">LinkedIn</option>
+        </select>
+        <input class="seq-subject" placeholder="Subject/Title" style="flex:1;padding:6px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:11px;" />
+        <input class="seq-body" placeholder="Body/Notes" style="flex:1;padding:6px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:11px;" />
+        <button class="danger small" onclick="this.parentElement.remove()" style="padding:4px 8px;">&#x2715;</button>
+    `;
+    container.appendChild(row);
+}
+
+async function deleteSequence(id) {
+    try {
+        await fetch(`${API_BASE}/sequences/${id}`, { method: 'DELETE' });
+        loadSequences();
+    } catch {}
+}
+
+// ─── MOBILE NAVIGATION ───────────────────────────────────────────────────
+function mobileNav(section) {
+    document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+    if (event && event.currentTarget) event.currentTarget.classList.add('active');
+    const targets = {
+        prospects: 'prospects-container',
+        board: 'kanban-board',
+        tasks: 'tasks-section',
+        forum: 'forum-section',
+        more: 'education-section'
+    };
+    const el = document.getElementById(targets[section]);
+    if (el) {
+        if (section === 'board') { setView('kanban'); }
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 }
 
 // ─── AI ICEBREAKER ────────────────────────────────────────────────────────
@@ -1780,9 +2169,16 @@ function updateTasksCount() {
     document.getElementById('tasks-count').textContent = pending;
 }
 
+const PRIORITY_COLORS = { high: 'var(--red)', medium: 'var(--yellow)', low: 'var(--green)' };
+const CATEGORY_ICONS = { call: '&#128222;', email: '&#9993;', meeting: '&#128197;', research: '&#128269;', general: '&#9733;' };
+let taskFilterPriority = 'all';
+let taskFilterCategory = 'all';
+
 function renderGlobalTasks() {
     const container = document.getElementById('global-tasks-list');
-    const pending = allTasks.filter(t => t.status === 'pending');
+    let pending = allTasks.filter(t => t.status === 'pending');
+    if (taskFilterPriority !== 'all') pending = pending.filter(t => (t.priority || 'medium') === taskFilterPriority);
+    if (taskFilterCategory !== 'all') pending = pending.filter(t => (t.category || 'general') === taskFilterCategory);
     if (!pending.length) {
         container.innerHTML = '<p style="font-size:12px;color:var(--text-dim);text-align:center;padding:12px;">No pending tasks</p>';
         return;
@@ -1790,9 +2186,13 @@ function renderGlobalTasks() {
     container.innerHTML = pending.slice(0, 10).map(t => {
         const isOverdue = t.due_date && new Date(t.due_date) < new Date();
         const prospect = prospects.find(p => p.id === t.prospect_id);
+        const priority = t.priority || 'medium';
+        const category = t.category || 'general';
         return `
         <div class="global-task-item">
             <input type="checkbox" class="task-checkbox" onchange="completeTask('${t.id}')" />
+            <span class="priority-dot" style="color:${PRIORITY_COLORS[priority]}" title="${priority} priority">&#9679;</span>
+            <span class="category-icon" title="${category}">${CATEGORY_ICONS[category] || CATEGORY_ICONS.general}</span>
             <span class="task-title">${esc(t.title)}</span>
             ${prospect ? `<span class="global-task-prospect">${esc(prospect.name)}</span>` : ''}
             ${t.due_date ? `<span class="task-due ${isOverdue?'overdue':''}">${t.due_date}</span>` : ''}
@@ -1801,10 +2201,18 @@ function renderGlobalTasks() {
     }).join('');
 }
 
+function setTaskFilter(type, value) {
+    if (type === 'priority') taskFilterPriority = value;
+    if (type === 'category') taskFilterCategory = value;
+    renderGlobalTasks();
+}
+
 async function addGlobalTask() {
     const title = document.getElementById('new-task-title').value.trim();
     const date = document.getElementById('new-task-date').value;
     const prospectId = document.getElementById('new-task-prospect').value;
+    const priority = (document.getElementById('new-task-priority') || {}).value || 'medium';
+    const category = (document.getElementById('new-task-category') || {}).value || 'general';
     if (!title || !date) {
         showStatus('Please enter a task title and due date', 'error');
         return;
@@ -1813,7 +2221,7 @@ async function addGlobalTask() {
     try {
         const res = await fetch(`${API_BASE}/tasks`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ title, due_date: date, prospect_id: prospectId || null })
+            body: JSON.stringify({ title, due_date: date, prospect_id: prospectId || null, priority, category })
         });
         const data = await res.json();
         if (data.success) {
