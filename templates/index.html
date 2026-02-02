@@ -1270,22 +1270,29 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.03);
+            padding: 10px 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 6px;
             font-size: 13px;
+            transition: var(--transition);
+            min-height: 40px;
         }
 
-        .task-item:last-child { border-bottom: none; }
+        .task-item:hover { border-color: var(--border-glow); }
 
-        .task-checkbox { accent-color: var(--green); cursor: pointer; }
+        .task-checkbox { accent-color: var(--green); cursor: pointer; flex-shrink: 0; }
 
-        .task-title { flex: 1; color: var(--text); }
+        .task-title { flex: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .task-title.done { text-decoration: line-through; color: var(--text-dim); }
 
         .task-due {
             font-size: 11px;
             font-family: var(--font-mono);
             color: var(--text-dim);
+            flex-shrink: 0;
+            white-space: nowrap;
         }
 
         .task-due.overdue { color: var(--red); }
@@ -1420,9 +1427,30 @@
             border-radius: var(--radius);
             margin-bottom: 6px;
             transition: var(--transition);
+            min-height: 40px;
         }
 
         .global-task-item:hover { border-color: var(--border-glow); }
+
+        .global-task-item .task-checkbox { flex-shrink: 0; }
+
+        .global-task-item .task-title {
+            flex: 1;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .global-task-item .task-due {
+            font-size: 11px;
+            font-family: var(--font-mono);
+            color: var(--text-dim);
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .global-task-item .task-due.overdue { color: var(--red); }
 
         .global-task-prospect {
             font-size: 10px;
@@ -1431,6 +1459,8 @@
             background: rgba(0,255,65,0.05);
             padding: 2px 6px;
             border-radius: 3px;
+            flex-shrink: 0;
+            white-space: nowrap;
         }
 
         /* ─── CHAT WIDGET ──────────────────────────────────────────────── */
@@ -2416,16 +2446,16 @@
                 <input type="text" id="name" name="name" required />
             </div>
             <div class="form-group">
-                <label for="company">Company *</label>
-                <input type="text" id="company" name="company" required />
+                <label for="company">Company</label>
+                <input type="text" id="company" name="company" />
             </div>
             <div class="form-group">
-                <label for="title">Title *</label>
-                <input type="text" id="title" name="title" required />
+                <label for="title">Title</label>
+                <input type="text" id="title" name="title" />
             </div>
             <div class="form-group">
                 <label for="email">Email <button type="button" class="email-guess-btn" onclick="guessEmail()">Guess Email</button></label>
-                <input type="email" id="email" name="email" />
+                <input type="text" id="email" name="email" placeholder="email@example.com" />
                 <div class="email-guess-container" id="email-guess-container"></div>
             </div>
             <div class="form-group">
@@ -2449,11 +2479,11 @@
             </div>
             <div class="form-group">
                 <label for="linkedin-url">LinkedIn URL</label>
-                <input type="url" id="linkedin-url" name="linkedin-url" placeholder="https://linkedin.com/in/..." />
+                <input type="text" id="linkedin-url" name="linkedin-url" placeholder="linkedin.com/in/..." />
             </div>
             <div class="form-group">
                 <label for="source-url">Source URL</label>
-                <input type="url" id="source-url" name="source-url" placeholder="Where you found this prospect" />
+                <input type="text" id="source-url" name="source-url" placeholder="Where you found this prospect" />
             </div>
             <div class="form-group">
                 <label for="notes">Notes</label>
@@ -2783,7 +2813,7 @@
             const res = await fetch(url);
             const data = await res.json();
             if (data.success && data.alerts && data.alerts.length > 0) {
-                grid.innerHTML = data.alerts.map(a => `
+                grid.innerHTML = data.alerts.slice(0, 3).map(a => `
                     <div class="sauce-card signal-${a.signal_type}" onclick="window.open('${a.source_url}', '_blank')" title="Open source">
                         <div class="sauce-signal-badge">${getSignalIcon(a.signal_type)} ${a.signal_type}</div>
                         <div class="sauce-headline">${esc(a.headline)}</div>
@@ -4045,6 +4075,7 @@
                         <input type="checkbox" class="task-checkbox" ${done?'checked disabled':''} onchange="completeTask('${t.id}')" />
                         <span class="task-title ${done?'done':''}">${esc(t.title)}</span>
                         ${t.due_date ? `<span class="task-due ${overdue?'overdue':''}">${t.due_date}</span>` : ''}
+                        <button class="danger small" onclick="deleteTask('${t.id}')" style="padding:2px 6px;font-size:10px;flex-shrink:0;">&#x2715;</button>
                     </div>`;
                 }).join('');
             } else {
