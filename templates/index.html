@@ -153,31 +153,124 @@
         }
 
         header .container {
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
             align-items: center;
+            gap: 12px;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            justify-self: start;
+        }
+
+        .header-brand-text {
+            font-family: var(--font-mono);
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, var(--green) 0%, #00cc33 40%, #ffffff 50%, #00cc33 60%, var(--green) 100%);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 0 8px rgba(0, 255, 65, 0.4)) drop-shadow(0 0 20px rgba(0, 255, 65, 0.15));
+            animation: brandShimmer 4s ease-in-out infinite;
+            position: relative;
+            padding: 6px 14px;
+            border-radius: var(--radius);
+            border: 1px solid rgba(0, 255, 65, 0.1);
+            background-color: rgba(0, 255, 65, 0.02);
+            backdrop-filter: blur(8px);
+        }
+
+        .header-brand-text::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: var(--radius);
+            background: linear-gradient(135deg, rgba(0,255,65,0.05), rgba(0,255,65,0.02), rgba(0,255,65,0.05));
+            pointer-events: none;
+        }
+
+        @keyframes brandShimmer {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
         }
 
         .logo-area {
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 12px;
+            justify-self: center;
         }
 
         .logo-area img {
-            height: 45px;
+            height: 80px;
             filter: brightness(1.2) contrast(1.1);
             transition: var(--transition);
+            mix-blend-mode: lighten;
+            border-radius: 8px;
         }
 
         .logo-area img:hover {
-            filter: brightness(1.4) drop-shadow(0 0 10px var(--green-glow));
+            filter: brightness(1.4) drop-shadow(0 0 15px var(--green-glow));
+            transform: scale(1.02);
         }
 
         .header-actions {
             display: flex;
             gap: 8px;
             align-items: center;
+            justify-self: end;
+        }
+
+        /* Bug Report Icon */
+        .bug-report-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            font-size: 16px;
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+        }
+        .bug-report-btn:hover {
+            border-color: var(--red-dim);
+            color: var(--red);
+            box-shadow: 0 0 12px rgba(255, 68, 68, 0.2);
+            background: rgba(255, 68, 68, 0.05);
+        }
+        .bug-report-btn:hover .bug-tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .bug-report-btn .bug-tooltip {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 50%;
+            transform: translateX(-50%) translateY(-4px);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            font-size: 10px;
+            font-family: var(--font-mono);
+            padding: 4px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            pointer-events: none;
         }
 
         /* ─── BUTTONS ──────────────────────────────────────────────────── */
@@ -222,92 +315,387 @@
 
         /* ─── NEWS SECTION ─────────────────────────────────────────────── */
         .news-section {
-            padding: 20px 0;
-            overflow: hidden;
+            padding: 20px 24px;
             position: relative;
             z-index: 1;
         }
 
-        .news-section h3 {
+        .news-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .news-column {
+            background: linear-gradient(145deg, var(--bg-card), rgba(18,18,18,0.9));
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
+        .news-column-header {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border);
             font-family: var(--font-mono);
             font-size: 12px;
             color: var(--green-dim);
             text-transform: uppercase;
             letter-spacing: 2px;
-            margin-bottom: 12px;
-            padding: 0 24px;
+            background: rgba(0, 255, 65, 0.03);
         }
 
         .news-scroll {
-            display: flex;
-            gap: 16px;
-            overflow-x: auto;
-            padding: 0 24px 12px;
-            scroll-behavior: smooth;
-            scrollbar-width: thin;
-            scrollbar-color: var(--green-dark) var(--bg-secondary);
-        }
-
-        .news-scroll::-webkit-scrollbar { height: 4px; }
-        .news-scroll::-webkit-scrollbar-track { background: var(--bg-secondary); }
-        .news-scroll::-webkit-scrollbar-thumb { background: var(--green-dark); border-radius: 2px; }
-
-        .news-card {
-            min-width: 300px;
-            max-width: 300px;
-            background: linear-gradient(145deg, var(--bg-card), rgba(18,18,18,0.9));
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: 18px;
-            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-            cursor: pointer;
-            flex-shrink: 0;
-            position: relative;
+            height: 280px;
             overflow: hidden;
+            position: relative;
         }
 
-        .news-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--green-dim), transparent);
-            opacity: 0;
-            transition: opacity 0.3s ease;
+        .news-scroll-inner {
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .news-card:hover {
-            border-color: var(--green-dark);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px var(--green-glow);
-            transform: translateY(-4px);
+        .news-item {
+            padding: 14px 18px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            transition: all 0.3s ease;
+            cursor: pointer;
         }
 
-        .news-card:hover::before { opacity: 1; }
+        .news-item:hover {
+            background: rgba(0, 255, 65, 0.03);
+            padding-left: 22px;
+        }
 
-        .news-card .news-source {
+        .news-item:hover .news-title {
+            color: var(--green);
+        }
+
+        .news-item .news-source {
             font-family: var(--font-mono);
             font-size: 10px;
             color: var(--green-dim);
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
 
-        .news-card .news-title {
+        .news-item .news-title {
             font-size: 13px;
             font-weight: 600;
             color: var(--text-bright);
             line-height: 1.4;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
+        }
+
+        .news-item .news-time {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        /* ─── TWEETS SECTION ──────────────────────────────────────────── */
+        .tweets-section {
+            padding: 0 24px 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .tweets-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .tweet-column {
+            background: linear-gradient(145deg, var(--bg-card), rgba(18,18,18,0.9));
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
+        .tweet-column-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--blue);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            background: rgba(0, 170, 255, 0.03);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tweet-column-header .x-logo {
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .tweet-scroll {
+            height: 240px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .tweet-scroll-inner {
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tweet-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .tweet-item:hover {
+            background: rgba(0, 170, 255, 0.03);
+            padding-left: 20px;
+        }
+
+        .tweet-item:hover .tweet-text {
+            color: var(--blue);
+        }
+
+        .tweet-item .tweet-handle {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--blue);
+            margin-bottom: 4px;
+        }
+
+        .tweet-item .tweet-text {
+            font-size: 12px;
+            color: var(--text);
+            line-height: 1.4;
+            margin-bottom: 4px;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
 
-        .news-card .news-time {
-            font-size: 11px;
+        .tweet-item .tweet-metrics {
+            font-size: 10px;
             color: var(--text-dim);
+            font-family: var(--font-mono);
+            display: flex;
+            gap: 12px;
+        }
+
+        /* ─── FOOTER ──────────────────────────────────────────────────── */
+        .site-footer {
+            position: relative;
+            margin-top: 40px;
+            border-top: 2px solid var(--green-dark);
+            background: linear-gradient(180deg, rgba(0, 255, 65, 0.02), var(--bg-primary));
+            overflow: hidden;
+        }
+
+        .footer-matrix-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            opacity: 0.08;
+            pointer-events: none;
+        }
+
+        .footer-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+            min-height: 80px;
+        }
+
+        .footer-logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .footer-logo-area img {
+            height: 35px;
+            filter: brightness(1.1) contrast(1.1);
+            mix-blend-mode: lighten;
+            border-radius: 6px;
+        }
+
+        .footer-legal {
+            position: absolute;
+            right: 24px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .footer-glow-line {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent 0%, var(--green) 30%, var(--green-dim) 50%, var(--green) 70%, transparent 100%);
+            animation: footerGlow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes footerGlow {
+            0% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+
+        /* ─── EDUCATION SECTION ───────────────────────────────────────── */
+        .education-section {
+            background: linear-gradient(135deg, rgba(0, 170, 255, 0.05), rgba(0, 50, 100, 0.15));
+            border: 1px solid rgba(0, 170, 255, 0.15);
+            padding: 24px;
+            border-radius: var(--radius-lg);
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .education-section::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle at center, rgba(0, 170, 255, 0.05) 0%, transparent 60%);
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .education-section h3 {
+            color: var(--blue);
+            font-family: var(--font-mono);
+            font-size: 16px;
+            margin-bottom: 6px;
+            position: relative;
+        }
+
+        .education-section > p {
+            color: var(--text-dim);
+            font-size: 13px;
+            margin-bottom: 16px;
+            position: relative;
+        }
+
+        .education-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+            position: relative;
+        }
+
+        .education-card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 170, 255, 0.1);
+            border-radius: var(--radius);
+            padding: 18px;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .education-card:hover {
+            border-color: var(--blue);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 170, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .education-card .edu-type {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--blue);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .education-card .edu-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-bright);
+            margin-bottom: 6px;
+        }
+
+        .education-card .edu-desc {
+            font-size: 12px;
+            color: var(--text-dim);
+            line-height: 1.4;
+        }
+
+        /* ─── SEARCHABLE PROSPECT DROPDOWN ────────────────────────────── */
+        .prospect-search-wrapper {
+            position: relative;
+        }
+
+        .prospect-search-input {
+            width: 100%;
+            padding: 8px 12px;
+            font-size: 12px;
+            background: var(--bg-primary);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-family: var(--font-sans);
+        }
+
+        .prospect-search-input:focus {
+            outline: none;
+            border-color: var(--green-dark);
+            box-shadow: 0 0 10px var(--green-glow);
+        }
+
+        .prospect-search-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 200px;
+            overflow-y: auto;
+            background: var(--bg-card);
+            border: 1px solid var(--green-dark);
+            border-top: none;
+            border-radius: 0 0 var(--radius) var(--radius);
+            z-index: 50;
+            display: none;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        .prospect-search-dropdown.active {
+            display: block;
+        }
+
+        .prospect-search-option {
+            padding: 8px 12px;
+            font-size: 12px;
+            color: var(--text);
+            cursor: pointer;
+            transition: background 0.15s ease;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+
+        .prospect-search-option:hover {
+            background: rgba(0, 255, 65, 0.08);
+            color: var(--green);
+        }
+
+        .prospect-search-option .option-company {
+            font-size: 10px;
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+        }
+
+        .prospect-search-option.general-option {
+            color: var(--green-dim);
+            font-family: var(--font-mono);
+            font-weight: 500;
         }
 
         /* ─── STATS GRID ──────────────────────────────────────────────── */
@@ -912,9 +1300,11 @@
             justify-content: center;
             align-items: center;
             backdrop-filter: blur(5px);
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
-        .modal.active { display: flex; animation: fadeIn 0.2s ease; }
+        .modal.active { opacity: 1; }
 
         .modal-content {
             background: rgba(17, 17, 17, 0.97);
@@ -929,6 +1319,7 @@
             overflow-y: auto;
             box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6), 0 0 40px var(--green-glow);
             animation: modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
         }
 
         @keyframes modalIn {
@@ -1295,6 +1686,57 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        /* ─── FORUM ───────────────────────────────────────────────────── */
+        .forum-section {
+            background: linear-gradient(180deg, rgba(0,255,65,0.02), transparent);
+            border-bottom: 1px solid var(--border);
+            padding: 24px 0;
+            position: relative;
+            z-index: 1;
+            overflow: hidden;
+        }
+        .forum-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; position: relative; z-index: 1; }
+        .forum-title { font-family: var(--font-mono); font-size: 18px; color: var(--green); text-transform: uppercase; letter-spacing: 2px; }
+        .forum-auth { display: flex; gap: 8px; align-items: center; }
+        .forum-auth .user-greeting { font-family: var(--font-mono); font-size: 12px; color: var(--green-dim); }
+        .auth-form { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 16px; position: relative; z-index: 1; }
+        .auth-form .form-group { margin-bottom: 10px; }
+        .auth-form .form-group label { font-size: 11px; font-family: var(--font-mono); color: var(--text-dim); display: block; margin-bottom: 4px; }
+        .auth-form .form-group input, .auth-form .form-group textarea { width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: var(--radius); font-family: var(--font-sans); font-size: 13px; }
+        .auth-form .form-group input:focus, .auth-form .form-group textarea:focus { border-color: var(--green-dark); outline: none; box-shadow: 0 0 10px var(--green-glow); }
+        .avatar-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+        .avatar-option { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; transition: var(--transition); background: var(--bg-primary); }
+        .avatar-option:hover { border-color: var(--green-dark); box-shadow: 0 0 10px var(--green-glow); }
+        .avatar-option.selected { border-color: var(--green); box-shadow: 0 0 15px var(--green-glow-strong); }
+        .forum-post-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 8px; cursor: pointer; transition: var(--transition); position: relative; z-index: 1; }
+        .forum-post-card:hover { border-color: var(--green-dark); box-shadow: 0 4px 20px rgba(0,0,0,0.3), 0 0 10px var(--green-glow); transform: translateY(-2px); }
+        .forum-post-card h3 { font-size: 15px; color: var(--text-bright); margin-bottom: 4px; }
+        .forum-post-meta { font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); display: flex; gap: 12px; align-items: center; }
+        .forum-post-meta .avatar-small { font-size: 14px; }
+        .forum-post-meta .comment-count { color: var(--green-dim); }
+        .forum-post-detail { position: relative; z-index: 1; }
+        .forum-post-full { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 16px; }
+        .forum-post-full h2 { font-size: 18px; color: var(--text-bright); margin-bottom: 8px; }
+        .forum-post-full .post-body { color: var(--text); line-height: 1.7; font-size: 14px; white-space: pre-wrap; }
+        .forum-post-full .post-signature { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-dim); font-style: italic; }
+        .forum-comment { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 6px; margin-left: 20px; }
+        .forum-comment .comment-header { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+        .forum-comment .comment-author { font-size: 12px; color: var(--green-dim); font-family: var(--font-mono); font-weight: 600; }
+        .forum-comment .comment-time { font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); }
+        .forum-comment .comment-body { font-size: 13px; color: var(--text); line-height: 1.5; white-space: pre-wrap; }
+        .forum-comment .comment-signature { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--border); font-size: 10px; color: var(--text-dim); font-style: italic; }
+        .forum-empty { text-align: center; padding: 40px 20px; color: var(--text-dim); font-family: var(--font-mono); font-size: 13px; position: relative; z-index: 1; }
+
+        /* ─── SMOOTH MODAL TRANSITIONS ────────────────────────────────── */
+        .modal.closing {
+            opacity: 0;
+        }
+
+        .modal.closing .modal-content {
+            transform: scale(0.95) translateY(10px);
+            opacity: 0;
+        }
+
         /* ─── RESPONSIVE ───────────────────────────────────────────────── */
         @media (max-width: 768px) {
             .input-row { grid-template-columns: 1fr; }
@@ -1303,7 +1745,12 @@
             .prospect-actions { grid-column: 1 / -1; opacity: 1; }
             .side-drawer { width: 100%; right: -100%; }
             .chat-window { width: 300px; }
-            .news-card { min-width: 260px; }
+            .news-columns { grid-template-columns: 1fr; }
+            .tweets-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        @media (max-width: 480px) {
+            .tweets-grid { grid-template-columns: 1fr; }
         }
 
         @media (min-width: 2000px) {
@@ -1311,6 +1758,309 @@
             .stat-number { font-size: 36px; }
             .prospect-info h3 { font-size: 16px; }
         }
+        /* ─── THE SAUCE ────────────────────────────────────────────────── */
+        .sauce-section {
+            padding: 20px 24px 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .sauce-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .sauce-header h3 {
+            font-family: var(--font-mono);
+            font-size: 14px;
+            color: var(--yellow);
+            letter-spacing: 1px;
+        }
+
+        .sauce-header h3 span {
+            color: var(--red);
+            font-size: 16px;
+        }
+
+        .sauce-refresh-btn {
+            font-size: 11px;
+            padding: 4px 10px;
+        }
+
+        .sauce-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 12px;
+        }
+
+        .sauce-card {
+            background: linear-gradient(145deg, var(--bg-card), rgba(18,18,18,0.9));
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sauce-card:hover {
+            border-color: var(--yellow-dim);
+            box-shadow: 0 0 15px rgba(255, 204, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .sauce-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+        }
+
+        .sauce-card.signal-funding::before { background: var(--green); }
+        .sauce-card.signal-acquisition::before { background: var(--red); }
+        .sauce-card.signal-leadership::before { background: var(--blue); }
+        .sauce-card.signal-expansion::before { background: var(--yellow); }
+
+        .sauce-signal-badge {
+            display: inline-block;
+            font-family: var(--font-mono);
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            margin-bottom: 6px;
+        }
+
+        .signal-funding .sauce-signal-badge { background: rgba(0,255,65,0.1); color: var(--green); }
+        .signal-acquisition .sauce-signal-badge { background: rgba(255,68,68,0.1); color: var(--red); }
+        .signal-leadership .sauce-signal-badge { background: rgba(0,170,255,0.1); color: var(--blue); }
+        .signal-expansion .sauce-signal-badge { background: rgba(255,204,0,0.1); color: var(--yellow); }
+
+        .sauce-headline {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-bright);
+            line-height: 1.4;
+            margin-bottom: 4px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .sauce-meta {
+            font-size: 10px;
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .sauce-keywords {
+            color: var(--yellow-dim);
+        }
+
+        .sauce-empty {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        /* ─── QUESTING ENGINE / XP BAR ────────────────────────────────── */
+        .xp-bar-section {
+            padding: 0 24px;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .xp-container {
+            background: linear-gradient(145deg, var(--bg-card), rgba(18,18,18,0.9));
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px 18px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .xp-level-badge {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 60px;
+        }
+
+        .xp-trophy {
+            font-size: 24px;
+            line-height: 1;
+        }
+
+        .xp-level-name {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+
+        .xp-level-name.tier-bronze { color: #cd7f32; }
+        .xp-level-name.tier-silver { color: #c0c0c0; }
+        .xp-level-name.tier-gold { color: #ffd700; }
+        .xp-level-name.tier-diamond { color: #b9f2ff; text-shadow: 0 0 8px rgba(185,242,255,0.5); }
+
+        .xp-progress-area {
+            flex: 1;
+        }
+
+        .xp-progress-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-family: var(--font-mono);
+            margin-bottom: 4px;
+        }
+
+        .xp-progress-header .xp-total { color: var(--green); }
+        .xp-progress-header .xp-next { color: var(--text-dim); }
+
+        .xp-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-primary);
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .xp-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .xp-bar-fill.tier-bronze { background: linear-gradient(90deg, #cd7f32, #daa520); }
+        .xp-bar-fill.tier-silver { background: linear-gradient(90deg, #a0a0a0, #e0e0e0); }
+        .xp-bar-fill.tier-gold { background: linear-gradient(90deg, #daa520, #ffd700); }
+        .xp-bar-fill.tier-diamond { background: linear-gradient(90deg, #87ceeb, #b9f2ff); box-shadow: 0 0 8px rgba(185,242,255,0.4); }
+
+        .xp-recent-action {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--green-dim);
+            margin-top: 3px;
+            opacity: 0.8;
+        }
+
+        /* XP popup notification */
+        .xp-popup {
+            position: fixed;
+            top: 80px;
+            right: 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--green-dark);
+            border-radius: var(--radius);
+            padding: 10px 16px;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--green);
+            box-shadow: 0 4px 20px rgba(0,255,65,0.15);
+            z-index: 9999;
+            animation: xpPopIn 0.3s ease, xpPopOut 0.3s ease 1.7s forwards;
+        }
+
+        @keyframes xpPopIn {
+            from { opacity: 0; transform: translateX(50px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes xpPopOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(50px); }
+        }
+
+        /* ─── DUPLICATE ALERT ─────────────────────────────────────────── */
+        .duplicate-alert {
+            background: rgba(255, 204, 0, 0.05);
+            border: 1px solid var(--yellow-dim);
+            border-radius: var(--radius);
+            padding: 12px 16px;
+            margin-top: 8px;
+        }
+
+        .duplicate-alert-header {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--yellow);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .duplicate-match {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            font-size: 12px;
+        }
+
+        .duplicate-match-info {
+            color: var(--text);
+        }
+
+        .duplicate-match-type {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            color: var(--yellow-dim);
+            text-transform: uppercase;
+        }
+
+        /* ─── EMAIL GUESS ─────────────────────────────────────────────── */
+        .email-guess-container {
+            margin-top: 4px;
+        }
+
+        .email-guess-btn {
+            font-size: 10px;
+            padding: 2px 8px;
+            color: var(--blue);
+            border-color: rgba(0,170,255,0.2);
+            background: transparent;
+        }
+
+        .email-guess-list {
+            margin-top: 6px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .email-guess-chip {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            padding: 3px 8px;
+            background: rgba(0,170,255,0.05);
+            border: 1px solid rgba(0,170,255,0.15);
+            border-radius: 3px;
+            color: var(--blue);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .email-guess-chip:hover {
+            background: rgba(0,170,255,0.1);
+            border-color: var(--blue);
+        }
+
     </style>
 </head>
 <body>
@@ -1326,6 +2076,9 @@
 <!-- ═══════════════ HEADER ═══════════════ -->
 <header>
     <div class="container">
+        <div class="header-brand">
+            <span class="header-brand-text">OriginOS</span>
+        </div>
         <div class="logo-area">
             <img src="/logo.jpg" alt="OriginOS" onerror="this.style.display='none'">
         </div>
@@ -1334,14 +2087,91 @@
             <button class="secondary small" onclick="document.getElementById('csv-import-input').click()" title="Import CSV">&#8593; Import</button>
             <button class="secondary small" onclick="exportCSV()" title="Export CSV">&#8595; Export</button>
             <button class="primary" id="add-prospect-btn">+ Add Prospect</button>
+            <a href="mailto:tylr.roper@gmail.com?subject=Bug%20or%20New%20Feature%20Suggestion%3A%20OriginOS" class="bug-report-btn" title="Report Bug or Suggest Feature" style="position:relative;">
+                &#128027;
+                <span class="bug-tooltip">Report Bug / Suggest Feature</span>
+            </a>
         </div>
     </div>
 </header>
 
-<!-- ═══════════════ NEWS ═══════════════ -->
+<!-- ═══════════════ XP BAR ═══════════════ -->
+<div class="xp-bar-section">
+    <div class="xp-container" id="xp-container">
+        <div class="xp-level-badge">
+            <div class="xp-trophy" id="xp-trophy">&#127942;</div>
+            <div class="xp-level-name tier-bronze" id="xp-level-name">Rookie</div>
+        </div>
+        <div class="xp-progress-area">
+            <div class="xp-progress-header">
+                <span class="xp-total" id="xp-total">0 XP</span>
+                <span class="xp-next" id="xp-next">Next: 100 XP</span>
+            </div>
+            <div class="xp-bar">
+                <div class="xp-bar-fill tier-bronze" id="xp-bar-fill" style="width: 0%"></div>
+            </div>
+            <div class="xp-recent-action" id="xp-recent-action"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ THE SAUCE ═══════════════ -->
+<div class="sauce-section">
+    <div class="sauce-header">
+        <h3><span>&#127798;</span> // The Sauce - Buy Signal Alerts</h3>
+        <button class="secondary small sauce-refresh-btn" onclick="loadSauceAlerts(true)">Refresh</button>
+    </div>
+    <div class="sauce-grid" id="sauce-grid">
+        <div class="sauce-empty">Loading buy signals...</div>
+    </div>
+</div>
+
+<!-- ═══════════════ NEWS (Side-by-Side) ═══════════════ -->
 <div class="news-section">
-    <h3>// Financial News</h3>
-    <div class="news-scroll" id="news-scroll"></div>
+    <div class="news-columns">
+        <div class="news-column">
+            <div class="news-column-header">// Financial News</div>
+            <div class="news-scroll" id="financial-news-scroll">
+                <div class="news-scroll-inner" id="financial-news-inner"></div>
+            </div>
+        </div>
+        <div class="news-column">
+            <div class="news-column-header">// Top News</div>
+            <div class="news-scroll" id="top-news-scroll">
+                <div class="news-scroll-inner" id="top-news-inner"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ TRENDING TWEETS ═══════════════ -->
+<div class="tweets-section">
+    <div class="tweets-grid">
+        <div class="tweet-column">
+            <div class="tweet-column-header"><span class="x-logo">&#120143;</span> Politics</div>
+            <div class="tweet-scroll" id="tweets-politics">
+                <div class="tweet-scroll-inner" id="tweets-politics-inner"></div>
+            </div>
+        </div>
+        <div class="tweet-column">
+            <div class="tweet-column-header"><span class="x-logo">&#120143;</span> Finance</div>
+            <div class="tweet-scroll" id="tweets-finance">
+                <div class="tweet-scroll-inner" id="tweets-finance-inner"></div>
+            </div>
+        </div>
+        <div class="tweet-column">
+            <div class="tweet-column-header"><span class="x-logo">&#120143;</span> Crypto</div>
+            <div class="tweet-scroll" id="tweets-crypto">
+                <div class="tweet-scroll-inner" id="tweets-crypto-inner"></div>
+            </div>
+        </div>
+        <div class="tweet-column">
+            <div class="tweet-column-header"><span class="x-logo">&#120143;</span> Global Econ</div>
+            <div class="tweet-scroll" id="tweets-global">
+                <div class="tweet-scroll-inner" id="tweets-global-inner"></div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- ═══════════════ MAIN CONTENT ═══════════════ -->
@@ -1379,7 +2209,6 @@
             <div class="radio-group">
                 <label><input type="radio" name="crawlType" value="scrape" checked> Scrape Page</label>
                 <label><input type="radio" name="crawlType" value="crawl"> Crawl Website</label>
-                <label><input type="radio" name="crawlType" value="map"> Map Structure</label>
             </div>
             <div class="input-row">
                 <div class="input-group">
@@ -1410,7 +2239,11 @@
             </div>
             <div class="input-group">
                 <label>Prospect</label>
-                <select id="new-task-prospect" style="font-size: 12px;"><option value="">General</option></select>
+                <div class="prospect-search-wrapper">
+                    <input type="text" class="prospect-search-input" id="new-task-prospect-search" placeholder="Search or type General..." autocomplete="off" />
+                    <input type="hidden" id="new-task-prospect" value="" />
+                    <div class="prospect-search-dropdown" id="prospect-search-dropdown"></div>
+                </div>
             </div>
             <button class="primary small" onclick="addGlobalTask()">Add</button>
         </div>
@@ -1446,7 +2279,120 @@
 
     <!-- Prospects Grid -->
     <div id="prospects-container" class="prospects-grid"></div>
+
+    <!-- Education Section -->
+    <div class="education-section reveal" style="margin-top: 24px;">
+        <h3>// Education & Resources</h3>
+        <p>Guides, tutorials, and strategies to level up your prospecting game</p>
+        <div class="education-grid" id="education-grid">
+            <div class="education-card" onclick="window.open('https://x.com/tylerhires/status/2017120193365832095', '_blank')">
+                <div class="edu-type">&#9654; Video Guide</div>
+                <div class="edu-title">Prospecting Masterclass</div>
+                <div class="edu-desc">Learn the fundamentals of effective BDM prospecting and outreach strategies.</div>
+            </div>
+            <div class="education-card">
+                <div class="edu-type">&#128214; Guide</div>
+                <div class="edu-title">Cold Outreach Templates</div>
+                <div class="edu-desc">Battle-tested email and LinkedIn message templates for maximum response rates.</div>
+            </div>
+            <div class="education-card">
+                <div class="edu-type">&#128200; Strategy</div>
+                <div class="edu-title">Pipeline Management 101</div>
+                <div class="edu-desc">How to organize, prioritize, and move prospects through your sales pipeline.</div>
+            </div>
+            <div class="education-card">
+                <div class="edu-type">&#128161; How-To</div>
+                <div class="edu-title">Using Firecrawl for Lead Gen</div>
+                <div class="edu-desc">Step-by-step guide to scraping company websites and auto-detecting prospects.</div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- ═══════════════ CLOSER'S COFFEE FORUM ═══════════════ -->
+<div class="forum-section" id="forum-section">
+    <div class="container">
+        <div class="mesh-gradient"></div>
+        <div class="forum-header">
+            <h2 class="forum-title">// Closer's Coffee</h2>
+            <div class="forum-auth" id="forum-auth"></div>
+        </div>
+
+        <!-- Auth Forms (hidden by default) -->
+        <div id="forum-login-form" class="auth-form" style="display:none;">
+            <h3 style="color:var(--green);font-family:var(--font-mono);font-size:14px;margin-bottom:12px;">Login</h3>
+            <div class="form-group"><label>Username or Email</label><input type="text" id="auth-login-user" placeholder="username or email" /></div>
+            <div class="form-group"><label>Password</label><input type="password" id="auth-login-pass" placeholder="password" /></div>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+                <button class="primary small" onclick="forumLogin()">Login</button>
+                <button class="secondary small" onclick="hideAuthForms()">Cancel</button>
+            </div>
+            <div id="auth-login-error" style="color:var(--red);font-size:11px;margin-top:6px;"></div>
+        </div>
+
+        <div id="forum-register-form" class="auth-form" style="display:none;">
+            <h3 style="color:var(--green);font-family:var(--font-mono);font-size:14px;margin-bottom:12px;">Create Account</h3>
+            <div class="form-group"><label>Username *</label><input type="text" id="auth-reg-user" placeholder="username (3-30 chars)" /></div>
+            <div class="form-group"><label>Email *</label><input type="email" id="auth-reg-email" placeholder="email@example.com" /></div>
+            <div class="form-group"><label>Password *</label><input type="password" id="auth-reg-pass" placeholder="min 6 characters" /></div>
+            <div class="form-group"><label>Display Name</label><input type="text" id="auth-reg-display" placeholder="optional display name" /></div>
+            <div class="form-group">
+                <label>Avatar</label>
+                <div class="avatar-picker" id="avatar-picker"></div>
+            </div>
+            <div class="form-group"><label>Signature</label><textarea id="auth-reg-sig" placeholder="Your forum signature (max 200 chars)" maxlength="200" rows="2"></textarea></div>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+                <button class="primary small" onclick="forumRegister()">Create Account</button>
+                <button class="secondary small" onclick="hideAuthForms()">Cancel</button>
+            </div>
+            <div id="auth-reg-error" style="color:var(--red);font-size:11px;margin-top:6px;"></div>
+        </div>
+
+        <!-- Profile Editor (hidden by default) -->
+        <div id="forum-profile-editor" class="auth-form" style="display:none;">
+            <h3 style="color:var(--green);font-family:var(--font-mono);font-size:14px;margin-bottom:12px;">Edit Profile</h3>
+            <div class="form-group"><label>Display Name</label><input type="text" id="profile-display-name" /></div>
+            <div class="form-group">
+                <label>Avatar</label>
+                <div class="avatar-picker" id="profile-avatar-picker"></div>
+            </div>
+            <div class="form-group"><label>Signature</label><textarea id="profile-signature" maxlength="200" rows="2"></textarea></div>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+                <button class="primary small" onclick="saveProfile()">Save</button>
+                <button class="secondary small" onclick="hideAuthForms()">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Forum Views -->
+        <div id="forum-post-list"></div>
+        <div id="forum-post-detail" style="display:none;"></div>
+        <div id="forum-create-form" style="display:none;">
+            <div class="auth-form">
+                <h3 style="color:var(--green);font-family:var(--font-mono);font-size:14px;margin-bottom:12px;">New Post</h3>
+                <div class="form-group"><label>Title *</label><input type="text" id="forum-new-title" placeholder="Post title" maxlength="200" /></div>
+                <div class="form-group"><label>Body *</label><textarea id="forum-new-body" placeholder="Write your post..." rows="5"></textarea></div>
+                <div style="display:flex;gap:8px;margin-top:8px;">
+                    <button class="primary small" onclick="submitForumPost()">Post</button>
+                    <button class="secondary small" onclick="showForumList()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer class="site-footer">
+    <div class="footer-glow-line"></div>
+    <canvas class="footer-matrix-canvas" id="footer-matrix-canvas"></canvas>
+    <div class="footer-content">
+        <div class="footer-logo-area">
+            <img src="/logo.jpg" alt="OriginOS" onerror="this.style.display='none'">
+        </div>
+        <div class="footer-legal">
+            OriginOS&trade; &copy; 2025
+        </div>
+    </div>
+</footer>
 
 <!-- ═══════════════ SIDE DRAWER ═══════════════ -->
 <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
@@ -1478,8 +2424,13 @@
                 <input type="text" id="title" name="title" required />
             </div>
             <div class="form-group">
-                <label for="email">Email</label>
+                <label for="email">Email <button type="button" class="email-guess-btn" onclick="guessEmail()">Guess Email</button></label>
                 <input type="email" id="email" name="email" />
+                <div class="email-guess-container" id="email-guess-container"></div>
+            </div>
+            <div class="form-group">
+                <label for="phone">Phone</label>
+                <input type="tel" id="phone" name="phone" placeholder="(555) 123-4567" />
             </div>
             <div class="form-group">
                 <label for="status">Status</label>
@@ -1507,6 +2458,10 @@
             <div class="form-group">
                 <label for="notes">Notes</label>
                 <textarea id="notes" name="notes" placeholder="Additional notes..."></textarea>
+            </div>
+            <div id="duplicate-alert" class="duplicate-alert" style="display:none;">
+                <div class="duplicate-alert-header">&#9888; Possible Duplicates Found</div>
+                <div id="duplicate-matches"></div>
             </div>
             <div class="modal-actions">
                 <button type="button" class="secondary" onclick="closeModal()">Cancel</button>
@@ -1657,26 +2612,148 @@
     }
 
     // ─── NEWS ─────────────────────────────────────────────────────────────────
-    const newsData = [
-        { source: 'Bloomberg', title: 'Federal Reserve Signals Potential Rate Cut in Coming Months', time: '2h ago' },
-        { source: 'Reuters', title: 'Tech Sector Leads Market Rally as AI Investments Surge', time: '3h ago' },
-        { source: 'CNBC', title: 'S&P 500 Hits New All-Time High on Strong Earnings Reports', time: '4h ago' },
-        { source: 'WSJ', title: 'Corporate M&A Activity Reaches Highest Level Since 2021', time: '5h ago' },
-        { source: 'Financial Times', title: 'Global Supply Chain Recovery Accelerates in Q4', time: '6h ago' },
-        { source: 'MarketWatch', title: 'Small-Cap Stocks Outperform Large-Caps for Third Consecutive Week', time: '7h ago' },
-        { source: 'Bloomberg', title: 'Venture Capital Funding Returns to Growth After Two-Year Slump', time: '8h ago' },
-        { source: 'Reuters', title: 'Energy Sector Transformation: Renewables Investment Surpasses Fossil Fuels', time: '9h ago' },
+    const financialNewsData = [
+        { source: 'Bloomberg', title: 'Federal Reserve Signals Potential Rate Cut in Coming Months', time: '2h ago', url: 'https://www.bloomberg.com' },
+        { source: 'CNBC', title: 'S&P 500 Hits New All-Time High on Strong Earnings Reports', time: '4h ago', url: 'https://www.cnbc.com' },
+        { source: 'WSJ', title: 'Corporate M&A Activity Reaches Highest Level Since 2021', time: '5h ago', url: 'https://www.wsj.com' },
+        { source: 'MarketWatch', title: 'Small-Cap Stocks Outperform Large-Caps for Third Consecutive Week', time: '7h ago', url: 'https://www.marketwatch.com' },
+        { source: 'Bloomberg', title: 'Venture Capital Funding Returns to Growth After Two-Year Slump', time: '8h ago', url: 'https://www.bloomberg.com' },
+        { source: 'Financial Times', title: 'Bond Yields Drop as Investors Seek Safe Haven Assets', time: '10h ago', url: 'https://www.ft.com' },
+        { source: 'CNBC', title: 'Bank Earnings Beat Expectations Across Major Institutions', time: '11h ago', url: 'https://www.cnbc.com' },
+        { source: 'MarketWatch', title: 'Commodity Prices Surge on Supply Chain Disruptions', time: '12h ago', url: 'https://www.marketwatch.com' },
     ];
 
+    const topNewsData = [
+        { source: 'Reuters', title: 'Tech Sector Leads Market Rally as AI Investments Surge', time: '3h ago', url: 'https://www.reuters.com' },
+        { source: 'Financial Times', title: 'Global Supply Chain Recovery Accelerates in Q4', time: '6h ago', url: 'https://www.ft.com' },
+        { source: 'Reuters', title: 'Energy Sector Transformation: Renewables Investment Surpasses Fossil Fuels', time: '9h ago', url: 'https://www.reuters.com' },
+        { source: 'AP News', title: 'International Trade Agreements Reshape Global Commerce Landscape', time: '10h ago', url: 'https://apnews.com' },
+        { source: 'BBC', title: 'Central Banks Worldwide Coordinate on Inflation Response Strategy', time: '11h ago', url: 'https://www.bbc.com/news' },
+        { source: 'Reuters', title: 'Manufacturing Output Rises for Fifth Consecutive Quarter', time: '12h ago', url: 'https://www.reuters.com' },
+        { source: 'AP News', title: 'New Regulations Target Big Tech Amid Antitrust Concerns', time: '13h ago', url: 'https://apnews.com' },
+        { source: 'BBC', title: 'Climate Summit Produces Landmark Agreement on Carbon Reduction', time: '14h ago', url: 'https://www.bbc.com/news' },
+    ];
+
+    // ─── TWEETS DATA ───────────────────────────────────────────────────────────
+    const tweetsData = {
+        politics: [
+            { handle: '@PoliticoRyan', text: 'Breaking: New bipartisan infrastructure bill gains momentum with key Senate votes confirmed for next week.', likes: '2.4K', retweets: '891' },
+            { handle: '@DCInsider', text: 'White House announces executive order on AI regulation framework. Tech lobbyists respond.', likes: '5.1K', retweets: '2.3K' },
+            { handle: '@CapitolWatch', text: 'Congressional committee hearing on data privacy yields heated exchange between lawmakers and tech CEOs.', likes: '1.8K', retweets: '634' },
+            { handle: '@PolicyPulse', text: 'New polling data shows shifting voter priorities heading into election season. Economy tops concerns.', likes: '3.2K', retweets: '1.1K' },
+            { handle: '@GovTracker', text: 'Federal budget proposal includes major allocation for cybersecurity and digital infrastructure.', likes: '1.5K', retweets: '445' },
+            { handle: '@PoliticoRyan', text: 'Trade negotiations with Pacific Rim nations enter critical phase this week.', likes: '2.1K', retweets: '756' },
+        ],
+        finance: [
+            { handle: '@WallStPro', text: 'SPY breaking out above resistance. Volume confirms bullish sentiment. Watch the 510 level.', likes: '8.2K', retweets: '3.1K' },
+            { handle: '@FinanceGuru', text: 'Goldman Sachs raises S&P 500 year-end target by 200 points. Cites strong corporate earnings growth.', likes: '4.5K', retweets: '1.8K' },
+            { handle: '@MarketMaven', text: 'Yield curve uninversion signals potential shift in economic outlook. Bond traders repositioning.', likes: '3.7K', retweets: '1.2K' },
+            { handle: '@OptionFlow', text: 'Massive call sweep on NVDA 950C expiring next month. Unusual activity worth watching.', likes: '6.1K', retweets: '2.5K' },
+            { handle: '@BankAnalyst', text: 'Regional bank earnings surprise to the upside. Credit quality improving across the sector.', likes: '2.9K', retweets: '890' },
+            { handle: '@WallStPro', text: 'Fed minutes reveal division among members on pace of rate adjustments. Markets react.', likes: '5.3K', retweets: '2.0K' },
+        ],
+        crypto: [
+            { handle: '@CryptoWhale', text: 'Bitcoin reclaims $100K support level. On-chain metrics show accumulation by long-term holders.', likes: '12.5K', retweets: '5.8K' },
+            { handle: '@DeFiAlpha', text: 'Ethereum staking yields hit new highs as network activity surges. DeFi TVL crosses $200B.', likes: '7.3K', retweets: '3.2K' },
+            { handle: '@AltSeason', text: 'Solana ecosystem sees massive growth in developer activity. New DEX volume records this week.', likes: '9.1K', retweets: '4.1K' },
+            { handle: '@BlockInsight', text: 'SEC signals more clarity on crypto regulation framework. Industry leaders cautiously optimistic.', likes: '6.8K', retweets: '2.9K' },
+            { handle: '@CryptoWhale', text: 'Institutional BTC inflows reach record levels through spot ETFs. Supply shock incoming?', likes: '15.2K', retweets: '7.1K' },
+            { handle: '@DeFiAlpha', text: 'Layer 2 rollups processing more transactions than Ethereum mainnet. Scaling narrative plays out.', likes: '4.6K', retweets: '1.8K' },
+        ],
+        global: [
+            { handle: '@GlobalEcon', text: 'IMF raises global growth forecast citing stronger-than-expected recovery in emerging markets.', likes: '3.4K', retweets: '1.5K' },
+            { handle: '@TradeWatch', text: 'EU-Asia trade corridor sees 40% volume increase. Container shipping rates stabilize.', likes: '2.1K', retweets: '780' },
+            { handle: '@EmergingMkts', text: 'India overtakes UK as 5th largest economy. FDI inflows accelerate across manufacturing sector.', likes: '5.8K', retweets: '2.4K' },
+            { handle: '@MacroView', text: 'Oil prices stabilize as OPEC+ maintains production targets. Energy transition investments continue.', likes: '2.7K', retweets: '920' },
+            { handle: '@GlobalEcon', text: 'Japan exits negative interest rate policy. Yen strengthens against major currencies.', likes: '4.2K', retweets: '1.7K' },
+            { handle: '@TradeWatch', text: 'Rare earth supply chain diversification efforts gain traction. Australia and Canada expand mining.', likes: '1.9K', retweets: '650' },
+        ]
+    };
+
+    let newsScrollIntervals = [];
+
     function initNews() {
-        const scroll = document.getElementById('news-scroll');
-        scroll.innerHTML = newsData.map(n => `
-            <div class="news-card">
-                <div class="news-source">${n.source}</div>
+        // Financial News
+        const finInner = document.getElementById('financial-news-inner');
+        finInner.innerHTML = financialNewsData.map(n => `
+            <div class="news-item" onclick="window.open('${n.url}', '_blank')" title="Open ${n.source}">
+                <div class="news-source">${n.source} &#8599;</div>
                 <div class="news-title">${n.title}</div>
                 <div class="news-time">${n.time}</div>
             </div>
         `).join('');
+
+        // Top News
+        const topInner = document.getElementById('top-news-inner');
+        topInner.innerHTML = topNewsData.map(n => `
+            <div class="news-item" onclick="window.open('${n.url}', '_blank')" title="Open ${n.source}">
+                <div class="news-source">${n.source} &#8599;</div>
+                <div class="news-title">${n.title}</div>
+                <div class="news-time">${n.time}</div>
+            </div>
+        `).join('');
+
+        // Tweets - open X search for the tweet text
+        const categories = ['politics', 'finance', 'crypto', 'global'];
+        categories.forEach(cat => {
+            const inner = document.getElementById(`tweets-${cat}-inner`);
+            inner.innerHTML = tweetsData[cat].map(t => {
+                const searchUrl = 'https://x.com/search?q=' + encodeURIComponent(t.handle.replace('@','') + ' ' + t.text.substring(0, 60));
+                return `
+                <div class="tweet-item" onclick="window.open('${searchUrl}', '_blank')" title="View on X">
+                    <div class="tweet-handle">${t.handle} &#8599;</div>
+                    <div class="tweet-text">${t.text}</div>
+                    <div class="tweet-metrics">
+                        <span>&#9825; ${t.likes}</span>
+                        <span>&#8635; ${t.retweets}</span>
+                    </div>
+                </div>`;
+            }).join('');
+        });
+
+        // Start auto-scroll
+        startNewsAutoScroll();
+    }
+
+    function startNewsAutoScroll() {
+        // Clear any existing intervals
+        newsScrollIntervals.forEach(id => clearInterval(id));
+        newsScrollIntervals = [];
+
+        const scrollConfigs = [
+            { innerId: 'financial-news-inner', containerId: 'financial-news-scroll' },
+            { innerId: 'top-news-inner', containerId: 'top-news-scroll' },
+            { innerId: 'tweets-politics-inner', containerId: 'tweets-politics' },
+            { innerId: 'tweets-finance-inner', containerId: 'tweets-finance' },
+            { innerId: 'tweets-crypto-inner', containerId: 'tweets-crypto' },
+            { innerId: 'tweets-global-inner', containerId: 'tweets-global' },
+        ];
+
+        scrollConfigs.forEach((config, idx) => {
+            let scrollPos = 0;
+            const delay = 5000 + (idx * 500); // Stagger slightly so they don't all scroll at once
+
+            const intervalId = setInterval(() => {
+                const inner = document.getElementById(config.innerId);
+                const container = document.getElementById(config.containerId);
+                if (!inner || !container) return;
+
+                const items = inner.querySelectorAll('.news-item, .tweet-item');
+                if (items.length === 0) return;
+
+                const itemHeight = items[0].offsetHeight;
+                const maxScroll = inner.scrollHeight - container.offsetHeight;
+
+                scrollPos += itemHeight;
+                if (scrollPos >= maxScroll) {
+                    scrollPos = 0;
+                }
+
+                inner.style.transform = `translateY(-${scrollPos}px)`;
+            }, delay);
+
+            newsScrollIntervals.push(intervalId);
+        });
     }
 
     // ─── SCROLL REVEAL ────────────────────────────────────────────────────────
@@ -1692,13 +2769,597 @@
         document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
     }
 
+    // ─── THE SAUCE - Buy Signal Alerts ──────────────────────────────────────
+    async function loadSauceAlerts(forceRefresh = false) {
+        const grid = document.getElementById('sauce-grid');
+        const refreshBtn = document.querySelector('.sauce-refresh-btn');
+        if (forceRefresh && refreshBtn) {
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = 'Scanning...';
+        }
+        grid.innerHTML = '<div class="sauce-empty">&#128270; Scanning for buy signals...</div>';
+        try {
+            const url = forceRefresh ? `${API_BASE}/sauce?refresh=1` : `${API_BASE}/sauce`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.success && data.alerts && data.alerts.length > 0) {
+                grid.innerHTML = data.alerts.map(a => `
+                    <div class="sauce-card signal-${a.signal_type}" onclick="window.open('${a.source_url}', '_blank')" title="Open source">
+                        <div class="sauce-signal-badge">${getSignalIcon(a.signal_type)} ${a.signal_type}</div>
+                        <div class="sauce-headline">${esc(a.headline)}</div>
+                        <div class="sauce-meta">
+                            <span>${esc(a.company)}</span>
+                            <span class="sauce-keywords">${esc(a.trigger_keywords)}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                grid.innerHTML = '<div class="sauce-empty">No buy signals detected today. Check back tomorrow or hit Refresh.</div>';
+            }
+        } catch (e) {
+            grid.innerHTML = '<div class="sauce-empty">Could not load signals. Backend may be starting up.</div>';
+        } finally {
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = 'Refresh';
+            }
+        }
+    }
+
+    function getSignalIcon(type) {
+        const icons = { funding: '&#128176;', acquisition: '&#129309;', leadership: '&#128100;', expansion: '&#127793;' };
+        return icons[type] || '&#128161;';
+    }
+
+    // ─── XP / QUESTING ENGINE ──────────────────────────────────────────────────
+    async function loadXP() {
+        try {
+            const res = await fetch(`${API_BASE}/xp`);
+            const data = await res.json();
+            if (data.success) updateXPDisplay(data);
+        } catch {}
+    }
+
+    function updateXPDisplay(data) {
+        const trophyIcons = { bronze: '&#127942;', silver: '&#129351;', gold: '&#127941;', diamond: '&#128142;' };
+        document.getElementById('xp-trophy').innerHTML = trophyIcons[data.tier] || '&#127942;';
+        const nameEl = document.getElementById('xp-level-name');
+        nameEl.textContent = `Lv.${data.level} ${data.name}`;
+        nameEl.className = `xp-level-name tier-${data.tier}`;
+        document.getElementById('xp-total').textContent = `${data.total_xp} XP`;
+        document.getElementById('xp-next').textContent = `Next: ${data.next_level_xp} XP`;
+        const fill = document.getElementById('xp-bar-fill');
+        fill.style.width = `${data.progress}%`;
+        fill.className = `xp-bar-fill tier-${data.tier}`;
+        if (data.recent_actions && data.recent_actions.length > 0) {
+            const recent = data.recent_actions[0];
+            document.getElementById('xp-recent-action').textContent = `Last: +${recent.xp_earned}XP ${recent.action.replace(/_/g, ' ')}`;
+        }
+    }
+
+    function showXPPopup(xp, action) {
+        if (xp <= 0) return;
+        const popup = document.createElement('div');
+        popup.className = 'xp-popup';
+        popup.innerHTML = `+${xp} XP <span style="color:var(--text-dim);font-size:11px;margin-left:6px;">${action.replace(/_/g, ' ')}</span>`;
+        document.body.appendChild(popup);
+        setTimeout(() => popup.remove(), 2200);
+    }
+
+    async function awardXP(action, detail = '') {
+        try {
+            const res = await fetch(`${API_BASE}/xp/award`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ action, detail })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showXPPopup(data.xp_earned, action);
+                updateXPDisplay(data);
+            }
+        } catch {}
+    }
+
+    // ─── EMAIL GUESSING ──────────────────────────────────────────────────────
+    async function guessEmail() {
+        const name = document.getElementById('name').value;
+        const company = document.getElementById('company').value;
+        const source = document.getElementById('source-url').value;
+        if (!name) { alert('Enter a name first'); return; }
+
+        try {
+            const res = await fetch(`${API_BASE}/guess-email`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ name, company, source_url: source })
+            });
+            const data = await res.json();
+            const container = document.getElementById('email-guess-container');
+            if (data.success && data.guesses.length > 0) {
+                container.innerHTML = `<div class="email-guess-list">${
+                    data.guesses.map(g => `<span class="email-guess-chip" onclick="document.getElementById('email').value='${g}';this.parentElement.parentElement.innerHTML='';">${g}</span>`).join('')
+                }</div>`;
+            } else {
+                container.innerHTML = '<span style="font-size:10px;color:var(--text-dim);">Need name + company/URL to guess</span>';
+            }
+        } catch {
+            document.getElementById('email-guess-container').innerHTML = '<span style="font-size:10px;color:var(--red);">Error guessing email</span>';
+        }
+    }
+
+    // ─── DUPLICATE DETECTION ─────────────────────────────────────────────────
+    let duplicateCheckTimeout = null;
+
+    function initDuplicateCheck() {
+        const nameInput = document.getElementById('name');
+        const emailInput = document.getElementById('email');
+        const companyInput = document.getElementById('company');
+
+        [nameInput, emailInput, companyInput].forEach(input => {
+            input.addEventListener('input', () => {
+                clearTimeout(duplicateCheckTimeout);
+                duplicateCheckTimeout = setTimeout(checkForDuplicates, 500);
+            });
+        });
+    }
+
+    async function checkForDuplicates() {
+        // Only check when adding new (not editing existing)
+        if (editingId) return;
+
+        const name = document.getElementById('name').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const company = document.getElementById('company').value.trim();
+
+        if (!name && !email) return;
+
+        try {
+            const res = await fetch(`${API_BASE}/prospects/check-duplicate`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ name, email, company })
+            });
+            const data = await res.json();
+            const alertEl = document.getElementById('duplicate-alert');
+            const matchesEl = document.getElementById('duplicate-matches');
+
+            if (data.success && data.duplicates.length > 0) {
+                matchesEl.innerHTML = data.duplicates.map(d => `
+                    <div class="duplicate-match">
+                        <div class="duplicate-match-info">
+                            <strong>${esc(d.name)}</strong> - ${esc(d.company || 'No company')}
+                            ${d.email ? ` (${esc(d.email)})` : ''}
+                        </div>
+                        <div style="display:flex;gap:4px;align-items:center;">
+                            <span class="duplicate-match-type">${d.match_type.replace(/_/g, ' ')}</span>
+                            <button type="button" class="secondary small" style="font-size:9px;padding:2px 6px;" onclick="mergeWithDuplicate('${d.id}')">Merge</button>
+                        </div>
+                    </div>
+                `).join('');
+                alertEl.style.display = 'block';
+            } else {
+                alertEl.style.display = 'none';
+            }
+        } catch {}
+    }
+
+    async function mergeWithDuplicate(existingId) {
+        if (!confirm('Merge into existing prospect? The current form data will update the existing record.')) return;
+        const prospect = {
+            name: document.getElementById('name').value,
+            company: document.getElementById('company').value,
+            title: document.getElementById('title').value,
+            email: document.getElementById('email').value,
+            phone: document.getElementById('phone').value,
+            linkedin_url: document.getElementById('linkedin-url').value,
+            source: document.getElementById('source-url').value,
+            notes: document.getElementById('notes').value,
+        };
+        // Update existing prospect with new data (only non-empty fields)
+        const updateData = {};
+        for (const [key, val] of Object.entries(prospect)) {
+            if (val) updateData[key] = val;
+        }
+        try {
+            const res = await fetch(`${API_BASE}/prospects/${existingId}`, {
+                method: 'PUT', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(updateData)
+            });
+            if (res.ok) {
+                closeModal();
+                showStatus('Merged with existing prospect', 'success');
+                await loadProspects();
+            }
+        } catch {}
+    }
+
+    // ─── FORUM & AUTH ─────────────────────────────────────────────────────
+    let currentUser = null;
+    let selectedAvatar = 'avatar-default';
+
+    const AVATAR_EMOJIS = {
+        'avatar-default': '&#128100;',
+        'avatar-hacker': '&#128187;',
+        'avatar-ghost': '&#128123;',
+        'avatar-skull': '&#128128;',
+        'avatar-robot': '&#129302;',
+        'avatar-alien': '&#128125;',
+        'avatar-ninja': '&#129399;',
+        'avatar-wizard': '&#129497;',
+        'avatar-dragon': '&#128009;',
+        'avatar-phoenix': '&#128038;',
+        'avatar-wolf': '&#128058;',
+        'avatar-eagle': '&#129413;'
+    };
+
+    function getAvatarEmoji(avatarId) {
+        return AVATAR_EMOJIS[avatarId] || AVATAR_EMOJIS['avatar-default'];
+    }
+
+    function renderAvatarPicker(containerId, currentAvatar) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = Object.entries(AVATAR_EMOJIS).map(([id, emoji]) =>
+            `<div class="avatar-option ${id === currentAvatar ? 'selected' : ''}" data-avatar="${id}" onclick="selectAvatar('${containerId}', '${id}')">${emoji}</div>`
+        ).join('');
+    }
+
+    function selectAvatar(containerId, avatarId) {
+        selectedAvatar = avatarId;
+        document.querySelectorAll(`#${containerId} .avatar-option`).forEach(el => {
+            el.classList.toggle('selected', el.dataset.avatar === avatarId);
+        });
+    }
+
+    async function checkAuth() {
+        try {
+            const res = await fetch(`${API_BASE}/auth/me`, { credentials: 'same-origin' });
+            const data = await res.json();
+            if (data.success && data.user) {
+                currentUser = data.user;
+                if (!chatUsername) {
+                    chatUsername = currentUser.username;
+                    localStorage.setItem('chat_username', chatUsername);
+                }
+            }
+        } catch {}
+        renderForumAuth();
+        loadForumPosts();
+    }
+
+    function renderForumAuth() {
+        const authDiv = document.getElementById('forum-auth');
+        if (currentUser) {
+            authDiv.innerHTML = `
+                <span class="user-greeting">${getAvatarEmoji(currentUser.avatar)} ${esc(currentUser.display_name || currentUser.username)}</span>
+                <button class="secondary small" onclick="showProfileEditor()">Profile</button>
+                <button class="primary small" onclick="showForumCreateForm()">New Post</button>
+                <button class="secondary small" onclick="forumLogout()">Logout</button>
+            `;
+        } else {
+            authDiv.innerHTML = `
+                <button class="primary small" onclick="showLoginForm()">Login</button>
+                <button class="secondary small" onclick="showRegisterForm()">Register</button>
+            `;
+        }
+    }
+
+    function showLoginForm() {
+        hideAuthForms();
+        document.getElementById('forum-login-form').style.display = 'block';
+    }
+
+    function showRegisterForm() {
+        hideAuthForms();
+        renderAvatarPicker('avatar-picker', 'avatar-default');
+        selectedAvatar = 'avatar-default';
+        document.getElementById('forum-register-form').style.display = 'block';
+    }
+
+    function showProfileEditor() {
+        hideAuthForms();
+        if (currentUser) {
+            document.getElementById('profile-display-name').value = currentUser.display_name || '';
+            document.getElementById('profile-signature').value = currentUser.signature || '';
+            selectedAvatar = currentUser.avatar || 'avatar-default';
+            renderAvatarPicker('profile-avatar-picker', selectedAvatar);
+        }
+        document.getElementById('forum-profile-editor').style.display = 'block';
+    }
+
+    function hideAuthForms() {
+        document.getElementById('forum-login-form').style.display = 'none';
+        document.getElementById('forum-register-form').style.display = 'none';
+        document.getElementById('forum-profile-editor').style.display = 'none';
+        document.getElementById('auth-login-error').textContent = '';
+        document.getElementById('auth-reg-error').textContent = '';
+    }
+
+    async function forumLogin() {
+        const username = document.getElementById('auth-login-user').value.trim();
+        const password = document.getElementById('auth-login-pass').value;
+        if (!username || !password) { document.getElementById('auth-login-error').textContent = 'Fill in all fields'; return; }
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/login`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                credentials: 'same-origin',
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (data.success) {
+                currentUser = data.user;
+                chatUsername = currentUser.username;
+                localStorage.setItem('chat_username', chatUsername);
+                hideAuthForms();
+                renderForumAuth();
+                loadForumPosts();
+            } else {
+                document.getElementById('auth-login-error').textContent = data.error || 'Login failed';
+            }
+        } catch {
+            document.getElementById('auth-login-error').textContent = 'Connection error';
+        }
+    }
+
+    async function forumRegister() {
+        const username = document.getElementById('auth-reg-user').value.trim();
+        const email = document.getElementById('auth-reg-email').value.trim();
+        const password = document.getElementById('auth-reg-pass').value;
+        const display_name = document.getElementById('auth-reg-display').value.trim();
+        const signature = document.getElementById('auth-reg-sig').value.trim();
+
+        if (!username || !email || !password) {
+            document.getElementById('auth-reg-error').textContent = 'Username, email, and password are required';
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/register`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                credentials: 'same-origin',
+                body: JSON.stringify({ username, email, password, display_name, avatar: selectedAvatar, signature })
+            });
+            const data = await res.json();
+            if (data.success) {
+                currentUser = data.user;
+                chatUsername = currentUser.username;
+                localStorage.setItem('chat_username', chatUsername);
+                hideAuthForms();
+                renderForumAuth();
+                loadForumPosts();
+            } else {
+                document.getElementById('auth-reg-error').textContent = data.error || 'Registration failed';
+            }
+        } catch {
+            document.getElementById('auth-reg-error').textContent = 'Connection error';
+        }
+    }
+
+    async function forumLogout() {
+        try {
+            await fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'same-origin' });
+        } catch {}
+        currentUser = null;
+        renderForumAuth();
+        loadForumPosts();
+    }
+
+    async function saveProfile() {
+        const display_name = document.getElementById('profile-display-name').value.trim();
+        const signature = document.getElementById('profile-signature').value.trim();
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/profile`, {
+                method: 'PUT', headers: {'Content-Type':'application/json'},
+                credentials: 'same-origin',
+                body: JSON.stringify({ display_name, avatar: selectedAvatar, signature })
+            });
+            const data = await res.json();
+            if (data.success) {
+                currentUser = data.user;
+                hideAuthForms();
+                renderForumAuth();
+            }
+        } catch {}
+    }
+
+    async function loadForumPosts() {
+        const container = document.getElementById('forum-post-list');
+        try {
+            const res = await fetch(`${API_BASE}/forum/posts`, { credentials: 'same-origin' });
+            const data = await res.json();
+            if (data.success && data.data.length > 0) {
+                container.innerHTML = data.data.map(p => `
+                    <div class="forum-post-card" onclick="viewForumPost(${p.id})">
+                        <h3>${esc(p.title)}</h3>
+                        <div class="forum-post-meta">
+                            <span class="avatar-small">${getAvatarEmoji(p.avatar)}</span>
+                            <span>${esc(p.display_name || p.username)}</span>
+                            <span>${formatForumTime(p.created_at)}</span>
+                            <span class="comment-count">${p.comment_count} comment${p.comment_count !== 1 ? 's' : ''}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = '<div class="forum-empty">No posts yet. Be the first to start a conversation!</div>';
+            }
+        } catch {
+            container.innerHTML = '<div class="forum-empty">Could not load forum posts.</div>';
+        }
+    }
+
+    async function viewForumPost(postId) {
+        document.getElementById('forum-post-list').style.display = 'none';
+        document.getElementById('forum-create-form').style.display = 'none';
+        const detail = document.getElementById('forum-post-detail');
+        detail.style.display = 'block';
+        detail.innerHTML = '<div class="forum-empty">Loading...</div>';
+
+        try {
+            const res = await fetch(`${API_BASE}/forum/posts/${postId}`, { credentials: 'same-origin' });
+            const data = await res.json();
+            if (!data.success) { detail.innerHTML = '<div class="forum-empty">Post not found.</div>'; return; }
+
+            const p = data.post;
+            const comments = data.comments;
+            detail.innerHTML = `
+                <div class="forum-post-detail">
+                    <button class="secondary small" onclick="showForumList()" style="margin-bottom:12px;">&larr; Back to posts</button>
+                    <div class="forum-post-full">
+                        <h2>${esc(p.title)}</h2>
+                        <div class="forum-post-meta" style="margin-bottom:12px;">
+                            <span class="avatar-small">${getAvatarEmoji(p.avatar)}</span>
+                            <span>${esc(p.display_name || p.username)}</span>
+                            <span>${formatForumTime(p.created_at)}</span>
+                        </div>
+                        <div class="post-body">${esc(p.body)}</div>
+                        ${p.signature ? `<div class="post-signature">${esc(p.signature)}</div>` : ''}
+                    </div>
+
+                    <h3 style="font-family:var(--font-mono);font-size:13px;color:var(--green-dim);margin-bottom:12px;">
+                        // Comments (${comments.length})
+                    </h3>
+
+                    ${comments.map(c => `
+                        <div class="forum-comment">
+                            <div class="comment-header">
+                                <span class="avatar-small">${getAvatarEmoji(c.avatar)}</span>
+                                <span class="comment-author">${esc(c.display_name || c.username)}</span>
+                                <span class="comment-time">${formatForumTime(c.created_at)}</span>
+                            </div>
+                            <div class="comment-body">${esc(c.body)}</div>
+                            ${c.signature ? `<div class="comment-signature">${esc(c.signature)}</div>` : ''}
+                        </div>
+                    `).join('')}
+
+                    ${currentUser ? `
+                        <div style="margin-top:16px;margin-left:20px;">
+                            <textarea id="forum-comment-input" placeholder="Write a comment..." rows="3"
+                                style="width:100%;background:var(--bg-primary);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:var(--radius);font-family:var(--font-sans);font-size:13px;"></textarea>
+                            <button class="primary small" onclick="submitForumComment(${postId})" style="margin-top:6px;">Post Comment</button>
+                        </div>
+                    ` : `
+                        <div style="margin-top:16px;margin-left:20px;color:var(--text-dim);font-size:12px;font-family:var(--font-mono);">
+                            <a href="#" onclick="event.preventDefault();showLoginForm()" style="color:var(--green);">Login</a> or
+                            <a href="#" onclick="event.preventDefault();showRegisterForm()" style="color:var(--green);">Register</a> to comment.
+                        </div>
+                    `}
+                </div>
+            `;
+        } catch {
+            detail.innerHTML = '<div class="forum-empty">Error loading post.</div>';
+        }
+    }
+
+    function showForumList() {
+        document.getElementById('forum-post-detail').style.display = 'none';
+        document.getElementById('forum-create-form').style.display = 'none';
+        document.getElementById('forum-post-list').style.display = 'block';
+        loadForumPosts();
+    }
+
+    function showForumCreateForm() {
+        if (!currentUser) { showLoginForm(); return; }
+        document.getElementById('forum-post-list').style.display = 'none';
+        document.getElementById('forum-post-detail').style.display = 'none';
+        document.getElementById('forum-create-form').style.display = 'block';
+        document.getElementById('forum-new-title').value = '';
+        document.getElementById('forum-new-body').value = '';
+    }
+
+    async function submitForumPost() {
+        const title = document.getElementById('forum-new-title').value.trim();
+        const body = document.getElementById('forum-new-body').value.trim();
+        if (!title || !body) return;
+
+        try {
+            const res = await fetch(`${API_BASE}/forum/posts`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                credentials: 'same-origin',
+                body: JSON.stringify({ title, body })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showForumList();
+            }
+        } catch {}
+    }
+
+    async function submitForumComment(postId) {
+        const input = document.getElementById('forum-comment-input');
+        const body = input.value.trim();
+        if (!body) return;
+
+        try {
+            const res = await fetch(`${API_BASE}/forum/posts/${postId}/comments`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                credentials: 'same-origin',
+                body: JSON.stringify({ body })
+            });
+            const data = await res.json();
+            if (data.success) {
+                viewForumPost(postId);
+            }
+        } catch {}
+    }
+
+    function formatForumTime(isoString) {
+        if (!isoString) return '';
+        const diff = Date.now() - new Date(isoString).getTime();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return 'just now';
+        if (mins < 60) return mins + 'm ago';
+        const hours = Math.floor(mins / 60);
+        if (hours < 24) return hours + 'h ago';
+        const days = Math.floor(hours / 24);
+        if (days < 30) return days + 'd ago';
+        return new Date(isoString).toLocaleDateString();
+    }
+
+    // ─── INPUT SANITIZATION ─────────────────────────────────────────────────
+    function sanitizeInput(value) {
+        if (typeof value !== 'string') return value;
+        return value
+            .replace(/[\u200B-\u200D\uFEFF]/g, '')
+            .replace(/\u00A0/g, ' ')
+            .replace(/[\u2000-\u200A]/g, ' ')
+            .replace(/\r\n/g, ' ')
+            .replace(/[\r\n]/g, ' ')
+            .replace(/\s{2,}/g, ' ')
+            .trim();
+    }
+
+    function initPasteSanitization() {
+        document.addEventListener('paste', (e) => {
+            const target = e.target;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+                setTimeout(() => {
+                    target.value = sanitizeInput(target.value);
+                }, 0);
+            }
+        });
+
+        document.addEventListener('blur', (e) => {
+            const target = e.target;
+            if ((target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') && target.type !== 'file') {
+                target.value = sanitizeInput(target.value);
+            }
+        }, true);
+    }
+
     // ─── INIT ─────────────────────────────────────────────────────────────────
     async function init() {
         initTicker();
         initNews();
         initScrollReveal();
+        initFooterMatrix();
+        initProspectSearch();
+        initPasteSanitization();
+        initDuplicateCheck();
+        checkAuth();
         loadProspects();
         loadAllTasks();
+        loadSauceAlerts();
+        loadXP();
         initChat();
 
         document.getElementById('add-prospect-btn').addEventListener('click', openModal);
@@ -1727,6 +3388,110 @@
                 card.style.animationDelay = `${i * 0.1}s`;
             });
         }, 300);
+    }
+
+    // ─── FOOTER MATRIX EFFECT ────────────────────────────────────────────────
+    function initFooterMatrix() {
+        const canvas = document.getElementById('footer-matrix-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        function resize() {
+            canvas.width = canvas.parentElement.offsetWidth;
+            canvas.height = canvas.parentElement.offsetHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        const chars = '01001101010110100101';
+        const fontSize = 10;
+        const columns = Math.floor(canvas.width / fontSize);
+        const drops = Array(columns).fill(1);
+
+        function draw() {
+            ctx.fillStyle = 'rgba(10, 10, 10, 0.15)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#00ff41';
+            ctx.font = fontSize + 'px monospace';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = chars[Math.floor(Math.random() * chars.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.95) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+
+        setInterval(draw, 80);
+    }
+
+    // ─── SEARCHABLE PROSPECT DROPDOWN ────────────────────────────────────────
+    function initProspectSearch() {
+        const searchInput = document.getElementById('new-task-prospect-search');
+        const dropdown = document.getElementById('prospect-search-dropdown');
+        const hiddenInput = document.getElementById('new-task-prospect');
+
+        searchInput.addEventListener('focus', () => {
+            showProspectDropdown('');
+        });
+
+        searchInput.addEventListener('input', () => {
+            showProspectDropdown(searchInput.value.trim().toLowerCase());
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                dropdown.classList.remove('active');
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.prospect-search-wrapper')) {
+                dropdown.classList.remove('active');
+            }
+        });
+    }
+
+    function showProspectDropdown(query) {
+        const dropdown = document.getElementById('prospect-search-dropdown');
+        let options = [{ id: '', name: 'General', company: '' }];
+
+        prospects.forEach(p => {
+            options.push({ id: p.id, name: p.name, company: p.company });
+        });
+
+        if (query) {
+            options = options.filter(o =>
+                o.name.toLowerCase().includes(query) ||
+                o.company.toLowerCase().includes(query)
+            );
+        }
+
+        if (options.length === 0) {
+            dropdown.innerHTML = '<div class="prospect-search-option" style="color:var(--text-dim);cursor:default;">No matches found</div>';
+        } else {
+            dropdown.innerHTML = options.map(o => {
+                if (o.id === '') {
+                    return `<div class="prospect-search-option general-option" data-id="" data-name="General" onclick="selectProspectForTask(this)">General (No specific prospect)</div>`;
+                }
+                return `<div class="prospect-search-option" data-id="${o.id}" data-name="${esc(o.name)}" onclick="selectProspectForTask(this)">
+                    ${esc(o.name)} <span class="option-company">${esc(o.company)}</span>
+                </div>`;
+            }).join('');
+        }
+
+        dropdown.classList.add('active');
+    }
+
+    function selectProspectForTask(el) {
+        const id = el.dataset.id;
+        const name = el.dataset.name;
+        document.getElementById('new-task-prospect').value = id;
+        document.getElementById('new-task-prospect-search').value = name;
+        document.getElementById('prospect-search-dropdown').classList.remove('active');
     }
 
     function handleCrawlTypeChange(e) {
@@ -1847,7 +3612,13 @@
         }
         if (ok > 0) {
             showStatus(`Added ${ok} prospect${ok !== 1 ? 's' : ''} to pipeline`, 'success');
-            clearSelection();
+            // Clear crawled cache and hide bulk actions
+            crawledProspectsCache = [];
+            selectedProspectsForBulkAdd.clear();
+            updateBulkActionsBar();
+            // Reset crawl URL input
+            document.getElementById('crawl-url').value = '';
+            // Reload normal prospect view (hides crawled cards)
             await loadProspects();
         }
     }
@@ -1909,7 +3680,7 @@
         const btn = document.getElementById('crawl-btn');
         btn.disabled = true;
         btn.textContent = 'SCANNING...';
-        showStatus(type === 'scrape' ? 'Scraping page...' : type === 'crawl' ? 'Crawling website...' : 'Mapping...', 'loading');
+        showStatus(type === 'scrape' ? 'Scraping page...' : 'Crawling website (this may take a moment)...', 'loading');
 
         try {
             const payload = { url, type };
@@ -1922,14 +3693,9 @@
             const data = await res.json();
 
             if (data.success) {
-                if (data.type === 'map') {
-                    showStatus(`Found ${data.urls.length} URLs`, 'success');
-                    displayUrlMap(data.urls);
-                } else {
-                    const count = data.prospects ? data.prospects.length : 0;
-                    showStatus(count > 0 ? `Found ${count} prospects - select to add` : 'No prospects detected. Try a different URL.', count > 0 ? 'success' : 'warning');
-                    displayCrawledProspects(data.prospects || [], url);
-                }
+                const count = data.prospects ? data.prospects.length : 0;
+                showStatus(count > 0 ? `Found ${count} prospects - select to add` : 'No prospects detected. Try a different URL.', count > 0 ? 'success' : 'warning');
+                displayCrawledProspects(data.prospects || [], url);
             } else {
                 showStatus(`Error: ${data.error}`, 'error');
             }
@@ -2000,7 +3766,10 @@
         document.getElementById('source-url').value = p.source || '';
         document.getElementById('notes').value = '';
         document.getElementById('prospect-form').dataset.crawledIdx = idx;
-        document.getElementById('prospect-modal').classList.add('active');
+        const modal = document.getElementById('prospect-modal');
+        modal.style.display = 'flex';
+        modal.offsetHeight;
+        modal.classList.add('active');
     }
 
     function displayUrlMap(urls) {
@@ -2040,11 +3809,22 @@
                 <div class="drawer-detail"><span class="drawer-detail-label">Company</span><span class="drawer-detail-value">${esc(p.company)}</span></div>
                 <div class="drawer-detail"><span class="drawer-detail-label">Title</span><span class="drawer-detail-value">${esc(p.title)}</span></div>
                 <div class="drawer-detail"><span class="drawer-detail-label">Email</span><span class="drawer-detail-value">${esc(p.email || 'N/A')}</span></div>
+                <div class="drawer-detail"><span class="drawer-detail-label">Phone</span><span class="drawer-detail-value">${p.phone ? esc(p.phone) : 'N/A'}</span></div>
                 <div class="drawer-detail"><span class="drawer-detail-label">Status</span><span class="drawer-detail-value"><span class="stage-badge stage-${p.status}">${p.status}</span></span></div>
                 <div class="drawer-detail"><span class="drawer-detail-label">Deal Size</span><span class="drawer-detail-value prospect-value">$${(p.deal_size||0).toLocaleString()}</span></div>
                 ${p.linkedin_url ? `<div class="drawer-detail"><span class="drawer-detail-label">LinkedIn</span><span class="drawer-detail-value"><a href="${esc(p.linkedin_url)}" target="_blank" style="color:var(--blue);">Profile</a></span></div>` : ''}
                 ${p.source ? `<div class="drawer-detail"><span class="drawer-detail-label">Source</span><span class="drawer-detail-value">${extractDomain(p.source)}</span></div>` : ''}
                 ${p.notes ? `<div class="drawer-detail"><span class="drawer-detail-label">Notes</span><span class="drawer-detail-value">${esc(p.notes)}</span></div>` : ''}
+            </div>
+
+            <!-- Outreach -->
+            <div class="drawer-section">
+                <div class="drawer-section-title">Outreach</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    ${p.email ? `<a href="mailto:${esc(p.email)}?subject=${encodeURIComponent('Following Up - ' + (p.company || ''))}" class="primary small" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:linear-gradient(135deg,var(--green-dark),#006622);color:var(--bg-primary);border:1px solid var(--green-dim);border-radius:var(--radius);font-size:11px;font-weight:600;">&#9993; Send Email</a>` : '<span style="color:var(--text-dim);font-size:11px;">No email - add one to enable outreach</span>'}
+                    ${p.phone ? `<a href="tel:${esc(p.phone)}" class="secondary small" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:var(--bg-card);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;">&#9742; Call</a>` : ''}
+                    ${p.linkedin_url ? `<a href="${esc(p.linkedin_url)}" target="_blank" class="secondary small" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:var(--bg-card);color:var(--blue);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;">in Message</a>` : ''}
+                </div>
             </div>
 
             <!-- Warmth -->
@@ -2168,17 +3948,31 @@
         const title = document.getElementById('new-task-title').value.trim();
         const date = document.getElementById('new-task-date').value;
         const prospectId = document.getElementById('new-task-prospect').value;
-        if (!title || !date) return;
+        if (!title || !date) {
+            showStatus('Please enter a task title and due date', 'error');
+            return;
+        }
 
         try {
-            await fetch(`${API_BASE}/tasks`, {
+            const res = await fetch(`${API_BASE}/tasks`, {
                 method: 'POST', headers: {'Content-Type':'application/json'},
                 body: JSON.stringify({ title, due_date: date, prospect_id: prospectId || null })
             });
-            document.getElementById('new-task-title').value = '';
-            document.getElementById('new-task-date').value = '';
-            await loadAllTasks();
-        } catch {}
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('new-task-title').value = '';
+                document.getElementById('new-task-date').value = '';
+                document.getElementById('new-task-prospect').value = '';
+                document.getElementById('new-task-prospect-search').value = '';
+                showStatus('Task added', 'success');
+                await loadAllTasks();
+            } else {
+                showStatus('Error adding task', 'error');
+            }
+        } catch (error) {
+            console.error('Error adding task:', error);
+            showStatus('Error adding task', 'error');
+        }
     }
 
     async function completeTask(taskId) {
@@ -2203,11 +3997,19 @@
         document.getElementById('task-title-input').value = '';
         document.getElementById('task-desc-input').value = '';
         document.getElementById('task-date-input').value = '';
-        document.getElementById('task-modal').classList.add('active');
+        const modal = document.getElementById('task-modal');
+        modal.style.display = 'flex';
+        modal.offsetHeight;
+        modal.classList.add('active');
     }
 
     function closeTaskModal() {
-        document.getElementById('task-modal').classList.remove('active');
+        const modal = document.getElementById('task-modal');
+        modal.classList.add('closing');
+        setTimeout(() => {
+            modal.classList.remove('active', 'closing');
+            modal.style.display = 'none';
+        }, 300);
     }
 
     async function handleTaskFormSubmit(e) {
@@ -2254,9 +4056,13 @@
     }
 
     function updateTaskProspectDropdown() {
-        const sel = document.getElementById('new-task-prospect');
-        sel.innerHTML = '<option value="">General</option>' +
-            prospects.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+        // No longer a <select>, the searchable input handles this dynamically
+        // Just reset the search field if it has stale data
+        const searchInput = document.getElementById('new-task-prospect-search');
+        if (searchInput && !searchInput.value) {
+            searchInput.value = '';
+            document.getElementById('new-task-prospect').value = '';
+        }
     }
 
     // ─── CSV IMPORT/EXPORT ────────────────────────────────────────────────────
@@ -2286,26 +4092,41 @@
         window.open(`${API_BASE}/export-csv`, '_blank');
     }
 
-    // ─── MODAL ────────────────────────────────────────────────────────────────
+    // ─── MODAL (Smooth Transitions) ─────────────────────────────────────────
     function openModal() {
         editingId = null;
         document.getElementById('modal-title').textContent = 'Add Prospect';
         document.getElementById('prospect-form').reset();
         document.getElementById('prospect-form').dataset.crawledIdx = '';
-        document.getElementById('prospect-modal').classList.add('active');
+        const modal = document.getElementById('prospect-modal');
+        modal.style.display = 'flex';
+        // Force reflow for transition
+        modal.offsetHeight;
+        modal.classList.add('active');
     }
 
     function closeModal() {
-        document.getElementById('prospect-modal').classList.remove('active');
+        const modal = document.getElementById('prospect-modal');
+        modal.classList.add('closing');
+        setTimeout(() => {
+            modal.classList.remove('active', 'closing');
+            modal.style.display = 'none';
+        }, 300);
     }
 
     async function handleFormSubmit(e) {
         e.preventDefault();
+        const saveBtn = document.querySelector('#prospect-form button[type="submit"]');
+        const origText = saveBtn.textContent;
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+
         const prospect = {
             name: document.getElementById('name').value,
             company: document.getElementById('company').value,
             title: document.getElementById('title').value,
             email: document.getElementById('email').value,
+            phone: document.getElementById('phone').value,
             status: document.getElementById('status').value,
             deal_size: parseFloat(document.getElementById('deal-size').value) || 0,
             linkedin_url: document.getElementById('linkedin-url').value,
@@ -2334,6 +4155,9 @@
             }
         } catch {
             showStatus('Error saving prospect', 'error');
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = origText;
         }
     }
 
@@ -2346,12 +4170,16 @@
         document.getElementById('company').value = p.company || '';
         document.getElementById('title').value = p.title || '';
         document.getElementById('email').value = p.email || '';
+        document.getElementById('phone').value = p.phone || '';
         document.getElementById('status').value = p.status || 'lead';
         document.getElementById('deal-size').value = p.deal_size || 0;
         document.getElementById('linkedin-url').value = p.linkedin_url || '';
         document.getElementById('source-url').value = p.source || '';
         document.getElementById('notes').value = p.notes || '';
-        document.getElementById('prospect-modal').classList.add('active');
+        const modal = document.getElementById('prospect-modal');
+        modal.style.display = 'flex';
+        modal.offsetHeight;
+        modal.classList.add('active');
     }
 
     async function deleteProspect(id) {
