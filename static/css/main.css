@@ -1103,7 +1103,14 @@ button.small { padding: 4px 10px; font-size: 11px; }
 .skeleton-chart { height: 180px; }
 
 /* Analytics */
-.analytics-section { margin-top: 24px; }
+.analytics-section {
+    margin-top: 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 24px;
+}
 .charts-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -1147,7 +1154,7 @@ button.small { padding: 4px 10px; font-size: 11px; }
     border-radius: var(--radius);
     padding: 14px 16px;
     display: grid;
-    grid-template-columns: auto auto 1fr auto;
+    grid-template-columns: auto 1fr auto;
     gap: 14px;
     align-items: center;
     transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1597,7 +1604,7 @@ input:focus, textarea:focus, select:focus {
 
 .add-task-form {
     display: grid;
-    grid-template-columns: 1fr 1fr auto auto;
+    grid-template-columns: 1fr auto auto auto;
     gap: 8px;
     margin-bottom: 14px;
     align-items: end;
@@ -2035,12 +2042,7 @@ input:focus, textarea:focus, select:focus {
 .enrich-verified { color: var(--green); font-size: 11px; }
 .enrich-unverified { color: var(--yellow); font-size: 11px; }
 
-/* ─── SEQUENCE BUILDER ────────────────────────────────────────── */
-.sequences-section { padding: 0; }
-.sequences-section h3 { font-family: var(--font-mono); font-size: 14px; color: var(--green); margin-bottom: 12px; }
-.sequence-card { transition: var(--transition); }
-.sequence-card:hover { border-color: var(--green-dim); }
-.seq-step-row { animation: fadeIn 0.2s ease; }
+/* ─── SEQUENCE BUILDER (hidden - will be added back with email functionality) ── */
 
 /* ─── STOCK SETTINGS GEAR BUTTON ──────────────────────────────── */
 .stock-ticker { position: relative; }
@@ -2068,7 +2070,7 @@ input:focus, textarea:focus, select:focus {
     /* Layout */
     .input-row { grid-template-columns: 1fr; }
     .add-task-form { grid-template-columns: 1fr; }
-    .prospect-card { grid-template-columns: auto auto 1fr; }
+    .prospect-card { grid-template-columns: auto 1fr; }
     .prospect-actions { grid-column: 1 / -1; opacity: 1; }
     .news-columns { grid-template-columns: 1fr; }
     .tweets-grid { grid-template-columns: 1fr 1fr; }

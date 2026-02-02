@@ -1088,7 +1088,6 @@ async function init() {
     loadAllTasks();
     loadSauceAlerts();
     loadXP();
-    loadSequences();
     initChat();
 
     document.getElementById('add-prospect-btn').addEventListener('click', openModal);
@@ -1277,8 +1276,7 @@ function displayProspects() {
         const warmthClass = warmth >= 70 ? 'warmth-hot' : warmth >= 40 ? 'warmth-warm' : 'warmth-cold';
         const staleClass = p.is_stale ? ' stale' : '';
         return `
-        <div class="prospect-card ${p.source ? 'crawled' : ''}${staleClass} ${selectedProspectsForBulkAdd.has(p.id) ? 'selected' : ''}" onclick="openDrawer('${p.id}')">
-            <input type="checkbox" class="prospect-checkbox" ${selectedProspectsForBulkAdd.has(p.id) ? 'checked' : ''} onclick="event.stopPropagation()" onchange="toggleProspectSelection('${p.id}', this.checked)" />
+        <div class="prospect-card ${p.source ? 'crawled' : ''}${staleClass}" onclick="openDrawer('${p.id}')">
             <div class="warmth-dot ${warmthClass}" title="Warmth: ${warmth}"></div>
             <div class="prospect-info">
                 <h3>${esc(p.name)}${p.is_stale ? ' <span class="stale-badge">OVERDUE ' + p.days_in_status + 'd</span>' : ''}</h3>

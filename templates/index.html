@@ -157,8 +157,8 @@
 
     <!-- Analytics Dashboard -->
     <div class="analytics-section reveal" id="analytics-section">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-            <h3 style="margin:0;">// Analytics</h3>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <h3 style="margin:0;font-family:var(--font-mono);font-size:13px;color:var(--green-dim);text-transform:uppercase;letter-spacing:1px;">// Analytics</h3>
             <button class="secondary small" id="analytics-toggle-btn" onclick="toggleAnalytics()">Run Analytics</button>
         </div>
         <div class="charts-grid" id="charts-grid" style="display:none;">
@@ -226,24 +226,6 @@
                     <div class="prospect-search-dropdown" id="prospect-search-dropdown"></div>
                 </div>
             </div>
-            <div class="input-group">
-                <label>Priority</label>
-                <select id="new-task-priority">
-                    <option value="medium">&#128992; Medium</option>
-                    <option value="high">&#128308; High</option>
-                    <option value="low">&#128994; Low</option>
-                </select>
-            </div>
-            <div class="input-group">
-                <label>Category</label>
-                <select id="new-task-category">
-                    <option value="general">&#9733; General</option>
-                    <option value="call">&#128222; Call</option>
-                    <option value="email">&#9993; Email</option>
-                    <option value="meeting">&#128197; Meeting</option>
-                    <option value="research">&#128269; Research</option>
-                </select>
-            </div>
             <button class="primary small" onclick="addGlobalTask()">Add</button>
         </div>
         <div class="task-filter-bar">
@@ -262,19 +244,6 @@
         <div id="global-tasks-list"></div>
     </div>
 
-    <!-- Sequence Builder -->
-    <div class="sequences-section reveal" id="sequences-section">
-        <h3>// Email Sequences</h3>
-        <div class="sequence-builder" style="margin-bottom:16px;">
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
-                <input type="text" id="seq-name" placeholder="Sequence name..." style="flex:1;padding:8px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;" />
-                <button class="secondary small" onclick="addSequenceStep()">+ Step</button>
-                <button class="primary small" onclick="createSequence()">Create</button>
-            </div>
-            <div id="seq-steps-container"></div>
-        </div>
-        <div id="sequences-list"></div>
-    </div>
 
     <!-- Bulk Actions Bar -->
     <div id="bulk-actions" class="bulk-actions">
