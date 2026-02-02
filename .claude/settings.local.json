@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"C:\\\\Users\\\\tyler\\\\.claude-worktrees\\\\BDM Prospecting Tool\\\\angry-snyder\" log --oneline -15)",
+      "Bash(git -C \"C:\\\\Users\\\\tyler\\\\.claude-worktrees\\\\BDM Prospecting Tool\\\\angry-snyder\" show main:logo.png --quiet)",
+      "Bash(git -C \"C:\\\\Users\\\\tyler\\\\.claude-worktrees\\\\BDM Prospecting Tool\\\\angry-snyder\" ls-tree:*)",
+      "Bash(git -C \"C:\\\\Users\\\\tyler\\\\.claude-worktrees\\\\BDM Prospecting Tool\\\\angry-snyder\" branch -a)",
+      "Bash(for branch in confident-dubinsky determined-johnson flamboyant-tharp pensive-solomon silly-meitner vigilant-easley)",
+      "Bash(do echo \"=== $branch ===\")",
+      "Bash(git -C \"C:\\\\Users\\\\tyler\\\\.claude-worktrees\\\\BDM Prospecting Tool\\\\angry-snyder\" show \"$branch:logo.png\" --quiet)",
+      "Bash(done)",
+      "Bash(ls \"C:\\\\Users\\\\tyler\\\\.claude-worktrees\\\\BDM Prospecting Tool\\\\angry-snyder\\\\static\\\\js\"\" 2>/dev/null || echo \"Directory does not exist yet \")",
+      "Bash(python:*)"
+    ]
+  }
+}

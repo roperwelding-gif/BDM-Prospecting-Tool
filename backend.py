@@ -3,6 +3,7 @@ from flask_cors import CORS
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
+from dotenv import load_dotenv
 import sqlite3
 import os
 import csv
@@ -10,16 +11,26 @@ import io
 from datetime import datetime, timedelta
 import requests
 import re
+import time as _time
+import xml.etree.ElementTree as ET
 from typing import List, Dict, Optional
 from urllib.parse import urljoin, urlparse
 
-app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'originOS-bdm-secret-key-change-in-prod-2024')
+load_dotenv()
+
+app = Flask(__name__, static_folder='static', static_url_path='/static')
+app.secret_key = os.environ.get('SECRET_KEY', '')
+if not app.secret_key:
+    raise RuntimeError('SECRET_KEY environment variable is required. Copy .env.example to .env and set it.')
 CORS(app, supports_credentials=True)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+limiter = Limiter(app=app, key_func=get_remote_address, default_limits=["200 per hour"])
+
 DB_FILE = 'prospects.db'
-FIRECRAWL_API_KEY = 'fc-186f6e0ea3cc4cc29732bb15a9a1b1d9'
+FIRECRAWL_API_KEY = os.environ.get('FIRECRAWL_API_KEY', '')
 FIRECRAWL_BASE_URL = 'https://api.firecrawl.dev/v1'
 
 # ─── Database ────────────────────────────────────────────────────────────────
@@ -51,11 +62,14 @@ def init_db():
         email_opens INTEGER DEFAULT 0,
         reply_count INTEGER DEFAULT 0
     )''')
+    # Safe column migration helper
+    def column_exists(cursor, table, column):
+        cursor.execute(f"PRAGMA table_info({table})")
+        return any(row[1] == column for row in cursor.fetchall())
+
     # Add phone column if upgrading from older schema
-    try:
+    if not column_exists(c, 'prospects', 'phone'):
         c.execute('ALTER TABLE prospects ADD COLUMN phone TEXT')
-    except:
-        pass  # Column already exists
 
     c.execute('''CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY,
@@ -130,22 +144,15 @@ def init_db():
     )''')
 
     # Migrate existing prospects table if needed (add new columns)
-    try:
-        c.execute("ALTER TABLE prospects ADD COLUMN warmth_score INTEGER DEFAULT 20")
-    except sqlite3.OperationalError:
-        pass
-    try:
-        c.execute("ALTER TABLE prospects ADD COLUMN last_contact_date TEXT")
-    except sqlite3.OperationalError:
-        pass
-    try:
-        c.execute("ALTER TABLE prospects ADD COLUMN email_opens INTEGER DEFAULT 0")
-    except sqlite3.OperationalError:
-        pass
-    try:
-        c.execute("ALTER TABLE prospects ADD COLUMN reply_count INTEGER DEFAULT 0")
-    except sqlite3.OperationalError:
-        pass
+    migrations = [
+        ('prospects', 'warmth_score', 'INTEGER DEFAULT 20'),
+        ('prospects', 'last_contact_date', 'TEXT'),
+        ('prospects', 'email_opens', 'INTEGER DEFAULT 0'),
+        ('prospects', 'reply_count', 'INTEGER DEFAULT 0'),
+    ]
+    for table, col, col_type in migrations:
+        if not column_exists(c, table, col):
+            c.execute(f'ALTER TABLE {table} ADD COLUMN {col} {col_type}')
 
     conn.commit()
     conn.close()
@@ -310,6 +317,29 @@ def extract_linkedin_from_text(text: str) -> Optional[str]:
         return company_matches[0]
     return None
 
+def calculate_extraction_confidence(prospect: dict) -> int:
+    """Score 0-100 based on data completeness and quality of an extracted prospect."""
+    score = 0
+    name = prospect.get('name', '')
+    if name and len(name.split()) >= 2:
+        score += 25
+        if len(name.split()) == 2:
+            score += 5
+    if prospect.get('title'):
+        score += 20
+        title_kw = ['CEO', 'CTO', 'VP', 'Director', 'Manager', 'Head', 'Lead', 'Founder', 'President', 'CFO', 'COO']
+        if any(kw.lower() in prospect['title'].lower() for kw in title_kw):
+            score += 5
+    if prospect.get('company'):
+        score += 15
+        if prospect['company'] != 'Unknown Company':
+            score += 5
+    if prospect.get('email'):
+        score += 15
+    if prospect.get('linkedin_url'):
+        score += 10
+    return min(100, score)
+
 def extract_prospects_from_content(content: str, source_url: str) -> List[Dict]:
     """
     Extract prospect information from Firecrawl markdown content.
@@ -468,14 +498,16 @@ def extract_prospects_from_content(content: str, source_url: str) -> List[Dict]:
             email = personal_emails[0] if personal_emails else emails[0]
 
         if (title or company) and name:
-            raw_prospects.append({
+            prospect = {
                 'name': name,
                 'title': title,
                 'company': company,
                 'email': email,
                 'linkedin_url': linkedin_url,
                 'source': source_url
-            })
+            }
+            prospect['confidence'] = calculate_extraction_confidence(prospect)
+            raw_prospects.append(prospect)
 
     # DEDUPLICATION:
     final_prospects = []
@@ -537,9 +569,9 @@ def calculate_warmth_score(prospect: dict) -> int:
 
 # ─── Static File Serving ──────────────────────────────────────────────────────
 
-@app.route('/logo.jpg')
+@app.route('/logo.png')
 def serve_logo():
-    return send_from_directory('.', 'logo.jpg')
+    return send_from_directory('static/images', 'logo.png')
 
 @app.route('/')
 def serve_index():
@@ -554,19 +586,49 @@ def health():
 # ─── Prospect CRUD ────────────────────────────────────────────────────────────
 
 @app.route('/api/prospects', methods=['GET'])
+@login_required
 def get_prospects():
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    per_page = min(per_page, 200)
+    offset = (page - 1) * per_page
+    status_filter = request.args.get('status', None)
+    search_q = request.args.get('q', None)
+
     conn = get_db()
     c = conn.cursor()
-    c.execute('SELECT * FROM prospects')
+
+    where_clauses = []
+    params = []
+    if status_filter and status_filter != 'all':
+        where_clauses.append('status = ?')
+        params.append(status_filter)
+    if search_q:
+        where_clauses.append('(name LIKE ? OR company LIKE ? OR title LIKE ? OR email LIKE ?)')
+        like_q = f'%{search_q}%'
+        params.extend([like_q, like_q, like_q, like_q])
+
+    where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ''
+
+    c.execute(f'SELECT COUNT(*) as total FROM prospects {where_sql}', params)
+    total = c.fetchone()['total']
+
+    c.execute(f'SELECT * FROM prospects {where_sql} ORDER BY created_at DESC LIMIT ? OFFSET ?',
+              params + [per_page, offset])
     prospects = []
     for row in c.fetchall():
         p = dict(row)
         p['warmth_score'] = calculate_warmth_score(p)
         prospects.append(p)
     conn.close()
-    return jsonify({'success': True, 'data': prospects})
+    return jsonify({
+        'success': True, 'data': prospects,
+        'total': total, 'page': page, 'per_page': per_page,
+        'total_pages': max(1, (total + per_page - 1) // per_page)
+    })
 
 @app.route('/api/prospects', methods=['POST'])
+@login_required
 def add_prospect():
     data = request.json
     prospect_id = f"p_{datetime.now().timestamp()}"
@@ -584,6 +646,7 @@ def add_prospect():
     return jsonify({'success': True, 'id': prospect_id})
 
 @app.route('/api/prospects/<prospect_id>', methods=['PUT'])
+@login_required
 def update_prospect(prospect_id):
     data = request.json
     conn = get_db()
@@ -626,6 +689,7 @@ def update_prospect(prospect_id):
     return jsonify({'success': True})
 
 @app.route('/api/prospects/<prospect_id>', methods=['DELETE'])
+@login_required
 def delete_prospect(prospect_id):
     conn = get_db()
     c = conn.cursor()
@@ -638,6 +702,7 @@ def delete_prospect(prospect_id):
 # ─── Stats ────────────────────────────────────────────────────────────────────
 
 @app.route('/api/stats', methods=['GET'])
+@login_required
 def get_stats():
     conn = get_db()
     c = conn.cursor()
@@ -661,6 +726,8 @@ def get_stats():
 # ─── Search / Scrape / Crawl ─────────────────────────────────────────────────
 
 @app.route('/api/search', methods=['POST'])
+@limiter.limit("10 per minute")
+@login_required
 def search_prospects():
     try:
         data = request.json
@@ -736,6 +803,8 @@ def search_prospects():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/scrape', methods=['POST'])
+@limiter.limit("10 per minute")
+@login_required
 def scrape_url():
     try:
         data = request.json
@@ -756,6 +825,8 @@ def scrape_url():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/crawl', methods=['POST'])
+@limiter.limit("5 per minute")
+@login_required
 def crawl_website():
     try:
         data = request.json
@@ -798,6 +869,7 @@ def crawl_website():
 # ─── CSV Import/Export ────────────────────────────────────────────────────────
 
 @app.route('/api/import-csv', methods=['POST'])
+@login_required
 def import_csv():
     try:
         if 'file' not in request.files:
@@ -843,6 +915,7 @@ def import_csv():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/export-csv', methods=['GET'])
+@login_required
 def export_csv():
     conn = get_db()
     c = conn.cursor()
@@ -866,6 +939,7 @@ def export_csv():
 # ─── Tasks / Reminders ───────────────────────────────────────────────────────
 
 @app.route('/api/tasks', methods=['GET'])
+@login_required
 def get_tasks():
     prospect_id = request.args.get('prospect_id')
     conn = get_db()
@@ -879,6 +953,7 @@ def get_tasks():
     return jsonify({'success': True, 'data': tasks})
 
 @app.route('/api/tasks', methods=['POST'])
+@login_required
 def add_task():
     data = request.json
     task_id = f"t_{datetime.now().timestamp()}"
@@ -895,6 +970,7 @@ def add_task():
     return jsonify({'success': True, 'id': task_id})
 
 @app.route('/api/tasks/<task_id>', methods=['PUT'])
+@login_required
 def update_task(task_id):
     data = request.json
     conn = get_db()
@@ -922,6 +998,7 @@ def update_task(task_id):
     return jsonify({'success': True})
 
 @app.route('/api/tasks/<task_id>', methods=['DELETE'])
+@login_required
 def delete_task(task_id):
     conn = get_db()
     c = conn.cursor()
@@ -933,6 +1010,7 @@ def delete_task(task_id):
 # ─── AI Icebreaker ────────────────────────────────────────────────────────────
 
 @app.route('/api/icebreaker', methods=['POST'])
+@login_required
 def generate_icebreaker():
     try:
         data = request.json
@@ -1040,6 +1118,7 @@ def post_chat_message():
 # ─── Auth Endpoints ──────────────────────────────────────────────────────────
 
 @app.route('/api/auth/register', methods=['POST'])
+@limiter.limit("5 per hour")
 def register():
     data = request.json
     username = (data.get('username', '') or '').strip()
@@ -1081,6 +1160,7 @@ def register():
         return jsonify({'success': False, 'error': 'Username or email already taken'}), 409
 
 @app.route('/api/auth/login', methods=['POST'])
+@limiter.limit("10 per minute")
 def login():
     data = request.json
     username = (data.get('username', '') or '').strip()
@@ -1236,7 +1316,8 @@ def get_news():
     category = request.args.get('category', 'business')
     try:
         gnews_category = 'business' if category == 'financial' else 'general'
-        url = f'https://gnews.io/api/v4/top-headlines?category={gnews_category}&lang=en&max=8&apikey=demo'
+        gnews_key = os.environ.get('GNEWS_API_KEY', 'demo')
+        url = f'https://gnews.io/api/v4/top-headlines?category={gnews_category}&lang=en&max=8&apikey={gnews_key}'
         response = requests.get(url, timeout=10)
         data = response.json()
         articles = []
@@ -1252,6 +1333,153 @@ def get_news():
         return jsonify({'success': True, 'articles': articles})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e), 'articles': []})
+
+# ─── Live Stock Ticker ───────────────────────────────────────────────────────
+
+_stock_cache = {'data': [], 'timestamp': 0}
+ALPHA_VANTAGE_KEY = os.environ.get('ALPHA_VANTAGE_API_KEY', '')
+STOCK_SYMBOLS = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'JPM', 'V', 'SPY', 'QQQ', 'NFLX', 'AMD']
+
+@app.route('/api/stocks', methods=['GET'])
+def get_stocks():
+    """Return stock data. Cached for 5 minutes."""
+    now = _time.time()
+    if _stock_cache['data'] and (now - _stock_cache['timestamp']) < 300:
+        return jsonify({'success': True, 'stocks': _stock_cache['data'], 'cached': True})
+
+    if not ALPHA_VANTAGE_KEY:
+        return jsonify({'success': True, 'stocks': [], 'error': 'No API key configured'})
+
+    stocks = []
+    try:
+        for sym in STOCK_SYMBOLS[:5]:
+            url = f'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={sym}&apikey={ALPHA_VANTAGE_KEY}'
+            resp = requests.get(url, timeout=8)
+            data = resp.json()
+            quote = data.get('Global Quote', {})
+            if quote:
+                price = float(quote.get('05. price', 0))
+                change = float(quote.get('09. change', 0))
+                stocks.append({'symbol': sym, 'price': round(price, 2), 'change': round(change, 2)})
+    except Exception as e:
+        print(f"Stock API error: {e}")
+        if _stock_cache['data']:
+            return jsonify({'success': True, 'stocks': _stock_cache['data'], 'cached': True, 'stale': True})
+        return jsonify({'success': True, 'stocks': []})
+
+    if stocks:
+        _stock_cache['data'] = stocks
+        _stock_cache['timestamp'] = now
+    return jsonify({'success': True, 'stocks': stocks, 'cached': False})
+
+# ─── Tweets via Nitter RSS ────────────────────────────────────────────────────
+
+NITTER_INSTANCES = [
+    'https://nitter.privacydev.net',
+    'https://nitter.poast.org',
+    'https://nitter.woodland.cafe',
+]
+
+TWITTER_FEEDS = {
+    'politics': ['PoliticsWolf', 'Politifact', 'theabortiondebate'],
+    'finance': ['FinancialTimes', 'business', 'markets'],
+    'crypto': ['CoinDesk', 'cabortiondebate', 'WatcherGuru'],
+    'global': ['WorldEconForum', 'economics', 'IMFNews'],
+}
+
+_tweets_cache = {'data': {}, 'timestamp': 0}
+
+@app.route('/api/tweets', methods=['GET'])
+def get_tweets():
+    """Fetch tweets via Nitter RSS. Cached for 15 minutes."""
+    category = request.args.get('category', None)
+    now = _time.time()
+
+    if _tweets_cache['data'] and (now - _tweets_cache['timestamp']) < 900:
+        data = _tweets_cache['data']
+        if category and category in data:
+            return jsonify({'success': True, 'tweets': {category: data[category]}, 'cached': True})
+        return jsonify({'success': True, 'tweets': data, 'cached': True})
+
+    all_tweets = {}
+    for cat, handles in TWITTER_FEEDS.items():
+        cat_tweets = []
+        for handle in handles:
+            for instance in NITTER_INSTANCES:
+                try:
+                    rss_url = f'{instance}/{handle}/rss'
+                    resp = requests.get(rss_url, timeout=8, headers={'User-Agent': 'Mozilla/5.0'})
+                    if resp.status_code != 200:
+                        continue
+                    root = ET.fromstring(resp.content)
+                    channel = root.find('channel')
+                    if channel is None:
+                        continue
+                    for item in channel.findall('item')[:3]:
+                        title = item.findtext('title', '')
+                        desc = item.findtext('description', '')
+                        desc_clean = re.sub(r'<[^>]+>', '', desc)[:280]
+                        cat_tweets.append({
+                            'handle': f'@{handle}',
+                            'text': desc_clean or title,
+                            'link': item.findtext('link', ''),
+                            'pubDate': item.findtext('pubDate', ''),
+                        })
+                    break
+                except Exception:
+                    continue
+        all_tweets[cat] = cat_tweets[:6]
+
+    if any(all_tweets.values()):
+        _tweets_cache['data'] = all_tweets
+        _tweets_cache['timestamp'] = now
+
+    result = all_tweets
+    if category and category in all_tweets:
+        result = {category: all_tweets[category]}
+    return jsonify({'success': True, 'tweets': result, 'cached': False})
+
+# ─── Analytics Dashboard ─────────────────────────────────────────────────────
+
+@app.route('/api/analytics', methods=['GET'])
+@login_required
+def get_analytics():
+    conn = get_db()
+    c = conn.cursor()
+
+    pipeline = {}
+    for status in ['lead', 'contacted', 'qualified', 'proposal', 'won', 'lost']:
+        c.execute('SELECT COUNT(*) as count, COALESCE(SUM(deal_size), 0) as value FROM prospects WHERE status = ?', (status,))
+        row = c.fetchone()
+        pipeline[status] = {'count': row['count'], 'value': row['value']}
+
+    thirty_days_ago = (datetime.now() - timedelta(days=30)).isoformat()
+    c.execute('''SELECT DATE(created_at) as day, COUNT(*) as count, COALESCE(SUM(deal_size), 0) as value
+                 FROM prospects WHERE created_at >= ?
+                 GROUP BY DATE(created_at) ORDER BY day''', (thirty_days_ago,))
+    timeline = [{'day': row['day'], 'count': row['count'], 'value': row['value']} for row in c.fetchall()]
+
+    c.execute('SELECT COUNT(*) as total FROM prospects')
+    total = c.fetchone()['total']
+    conversions = {}
+    if total > 0:
+        for status in ['contacted', 'qualified', 'proposal', 'won']:
+            c.execute('SELECT COUNT(*) as count FROM prospects WHERE status = ?', (status,))
+            conversions[status] = round(c.fetchone()['count'] / total * 100, 1)
+
+    c.execute('''SELECT DATE(created_at) as day, COUNT(*) as actions
+                 FROM xp_log WHERE created_at >= ?
+                 GROUP BY DATE(created_at) ORDER BY day''', (thirty_days_ago,))
+    activity = [{'day': row['day'], 'actions': row['actions']} for row in c.fetchall()]
+
+    conn.close()
+    return jsonify({
+        'success': True,
+        'pipeline': pipeline,
+        'timeline': timeline,
+        'conversions': conversions,
+        'activity': activity
+    })
 
 # ─── The Sauce - Signal-Based Buy Signals ─────────────────────────────────────
 
@@ -1428,6 +1656,7 @@ def guess_email(name: str, company_domain: str) -> list:
     return guesses
 
 @app.route('/api/guess-email', methods=['POST'])
+@login_required
 def guess_email_route():
     data = request.json
     name = data.get('name', '')
@@ -1447,6 +1676,7 @@ def guess_email_route():
 # ─── Duplicate Detection ─────────────────────────────────────────────────────
 
 @app.route('/api/prospects/check-duplicate', methods=['POST'])
+@login_required
 def check_duplicate():
     """Check if a prospect already exists by name/email/company similarity."""
     data = request.json
@@ -1488,6 +1718,7 @@ def check_duplicate():
     return jsonify({'success': True, 'duplicates': duplicates})
 
 @app.route('/api/prospects/merge', methods=['POST'])
+@login_required
 def merge_prospects():
     """Merge two prospects: keep target, delete source, combine notes."""
     data = request.json
@@ -1605,6 +1836,7 @@ def award_xp(action, detail=''):
     return xp
 
 @app.route('/api/xp', methods=['GET'])
+@login_required
 def get_xp():
     """Get total XP and level info."""
     conn = get_db()
@@ -1619,6 +1851,7 @@ def get_xp():
     return jsonify({'success': True, **level_info})
 
 @app.route('/api/xp/award', methods=['POST'])
+@login_required
 def award_xp_route():
     data = request.json
     action = data.get('action', '')
