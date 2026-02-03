@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 import requests
 import re
 import time as _time
+import random
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Optional
 from urllib.parse import urljoin, urlparse
@@ -247,19 +248,36 @@ def init_db():
         FOREIGN KEY (challenge_id) REFERENCES challenges(id) ON DELETE CASCADE
     )''')
 
-    # Seed default challenges if empty
+    # Seed challenges — replace old set with full 20 if needed
     c.execute('SELECT COUNT(*) as cnt FROM challenges')
-    if c.fetchone()['cnt'] == 0:
-        seed_challenges = [
-            ('Contact 5 Prospects', 'Reach out to 5 prospects today', 'daily', 'status_lead_to_contacted', 5, 25),
+    if c.fetchone()['cnt'] < 20:
+        c.execute('DELETE FROM challenges')
+        all_challenges = [
+            # Daily challenges (12)
+            ('Add 2 Prospects', 'Add 2 new prospects to your pipeline', 'daily', 'prospect_added', 2, 10),
+            ('Add 5 Prospects', 'Add 5 new prospects today', 'daily', 'prospect_added', 5, 25),
+            ('Contact 3 Prospects', 'Move 3 leads to contacted status', 'daily', 'status_lead_to_contacted', 3, 20),
+            ('Contact 5 Prospects', 'Reach out to 5 prospects today', 'daily', 'status_lead_to_contacted', 5, 30),
             ('Complete 3 Tasks', 'Finish 3 tasks today', 'daily', 'task_completed', 3, 15),
-            ('Add 2 Prospects', 'Add 2 new prospects today', 'daily', 'prospect_added', 2, 10),
+            ('Complete 5 Tasks', 'Knock out 5 tasks in one day', 'daily', 'task_completed', 5, 30),
+            ('Create 3 Tasks', 'Plan your day with 3 new tasks', 'daily', 'task_added', 3, 10),
+            ('Qualify a Lead', 'Move a prospect to qualified status', 'daily', 'status_to_qualified', 1, 15),
+            ('Send a Proposal', 'Advance a prospect to proposal stage', 'daily', 'status_to_proposal', 1, 20),
+            ('Run a Scrape', 'Use the AI scraper to discover prospects', 'daily', 'scrape_ran', 1, 15),
+            ('Forum Contributor', 'Share knowledge with a forum post', 'daily', 'forum_post', 1, 10),
+            ('Join the Discussion', 'Comment on a forum post', 'daily', 'forum_comment', 2, 10),
+            # Weekly challenges (8)
             ('Close a Deal', 'Win a deal this week', 'weekly', 'status_to_won', 1, 100),
-            ('Add 10 Prospects', 'Add 10 prospects this week', 'weekly', 'prospect_added', 10, 50),
-            ('Complete 10 Tasks', 'Finish 10 tasks this week', 'weekly', 'task_completed', 10, 40),
+            ('Closer Streak', 'Win 3 deals this week', 'weekly', 'status_to_won', 3, 200),
+            ('Pipeline Builder', 'Add 10 prospects this week', 'weekly', 'prospect_added', 10, 50),
+            ('Prospecting Machine', 'Add 20 prospects this week', 'weekly', 'prospect_added', 20, 80),
+            ('Task Master', 'Complete 10 tasks this week', 'weekly', 'task_completed', 10, 40),
+            ('Outreach Blitz', 'Contact 10 prospects this week', 'weekly', 'status_lead_to_contacted', 10, 60),
+            ('Qualification Expert', 'Qualify 5 leads this week', 'weekly', 'status_to_qualified', 5, 50),
+            ('Proposal Push', 'Send 3 proposals this week', 'weekly', 'status_to_proposal', 3, 75),
         ]
-        for title, desc, ctype, action, count, xp in seed_challenges:
-            c.execute('INSERT INTO challenges (title, description, challenge_type, target_action, target_count, xp_reward, is_active) VALUES (?,?,?,?,?,?,1)',
+        for title, desc, ctype, action, count, xp in all_challenges:
+            c.execute('INSERT INTO challenges (title, description, challenge_type, target_action, target_count, xp_reward, is_active) VALUES (?,?,?,?,?,?,0)',
                       (title, desc, ctype, action, count, xp))
 
     # ─── Forum Reports ────────────────────────────────────────────────────
@@ -289,6 +307,7 @@ def init_db():
         ('users', 'role', "TEXT DEFAULT 'user'"),
         ('forum_posts', 'is_reported', 'INTEGER DEFAULT 0'),
         ('forum_comments', 'is_reported', 'INTEGER DEFAULT 0'),
+        ('xp_log', 'user_id', 'INTEGER'),
     ]
     for table, col, col_type in migrations:
         if not column_exists(c, table, col):
@@ -298,6 +317,44 @@ def init_db():
     conn.close()
 
 init_db()
+
+# ─── Challenge Rotation ──────────────────────────────────────────────────────
+
+def rotate_challenges():
+    """Pick a fresh set of active challenges: 4 daily + 2 weekly = 6 total.
+    Rotates once per calendar day using a date-based seed for consistency."""
+    conn = get_db()
+    c = conn.cursor()
+    today = datetime.now().strftime('%Y-%m-%d')
+
+    # Check if we already rotated today
+    c.execute("SELECT COUNT(*) as cnt FROM challenges WHERE is_active = 1 AND start_date = ?", (today,))
+    if c.fetchone()['cnt'] > 0:
+        conn.close()
+        return  # Already rotated today
+
+    # Get all challenges by type
+    c.execute("SELECT id FROM challenges WHERE challenge_type = 'daily'")
+    daily_ids = [row['id'] for row in c.fetchall()]
+    c.execute("SELECT id FROM challenges WHERE challenge_type = 'weekly'")
+    weekly_ids = [row['id'] for row in c.fetchall()]
+
+    # Seed random with today's date for consistent daily rotation
+    rng = random.Random(today)
+    pick_daily = rng.sample(daily_ids, min(4, len(daily_ids)))
+    pick_weekly = rng.sample(weekly_ids, min(2, len(weekly_ids)))
+    active_ids = pick_daily + pick_weekly
+
+    # Deactivate all, then activate the picked set
+    c.execute("UPDATE challenges SET is_active = 0, start_date = NULL")
+    for cid in active_ids:
+        c.execute("UPDATE challenges SET is_active = 1, start_date = ? WHERE id = ?", (today, cid))
+
+    conn.commit()
+    conn.close()
+
+# Run rotation on startup so challenges are always populated
+rotate_challenges()
 
 # ─── Auth Helpers ─────────────────────────────────────────────────────────────
 
@@ -1600,6 +1657,8 @@ def login():
         conn.close()
         session['user_id'] = user['id']
         session['username'] = user['username']
+        # Rotate challenges on login (picks new set if day changed)
+        rotate_challenges()
         return jsonify({'success': True, 'user': {
             'id': user['id'], 'username': user['username'], 'email': user['email'],
             'display_name': user['display_name'], 'avatar': user['avatar'], 'signature': user['signature']
@@ -1643,6 +1702,87 @@ def update_profile():
 @app.route('/api/auth/avatars', methods=['GET'])
 def get_avatars():
     return jsonify({'success': True, 'avatars': AVATAR_OPTIONS})
+
+@app.route('/api/profile/stats', methods=['GET'])
+@login_required
+def get_profile_stats():
+    """Get comprehensive profile data for the profile modal."""
+    user = get_current_user()
+    if not user:
+        return jsonify({'success': False, 'error': 'Not logged in'}), 401
+    conn = get_db()
+    c = conn.cursor()
+
+    uid = user['id']
+
+    # XP & level info (user-scoped)
+    c.execute('SELECT COALESCE(SUM(xp_earned), 0) as total FROM xp_log WHERE user_id = ? OR user_id IS NULL', (uid,))
+    total_xp = c.fetchone()['total']
+    level_info = get_level_info(total_xp)
+
+    # Streak info
+    c.execute('SELECT * FROM streaks WHERE user_id = ? LIMIT 1', (uid,))
+    streak = c.fetchone()
+    if not streak:
+        c.execute('SELECT * FROM streaks LIMIT 1')
+        streak = c.fetchone()
+    streak_info = dict(streak) if streak else {'current_streak': 0, 'longest_streak': 0}
+
+    # Prospect stats
+    c.execute('SELECT COUNT(*) as total FROM prospects')
+    total_prospects = c.fetchone()['total']
+    c.execute("SELECT COUNT(*) as count FROM prospects WHERE status = 'won'")
+    won_deals = c.fetchone()['count']
+    c.execute('SELECT COALESCE(SUM(deal_size), 0) as value FROM prospects')
+    pipeline_value = c.fetchone()['value']
+    c.execute("SELECT COALESCE(SUM(deal_size), 0) as value FROM prospects WHERE status = 'won'")
+    won_value = c.fetchone()['value']
+
+    # Task stats
+    c.execute('SELECT COUNT(*) as count FROM tasks')
+    total_tasks = c.fetchone()['count']
+    c.execute("SELECT COUNT(*) as count FROM tasks WHERE status = 'completed'")
+    completed_tasks = c.fetchone()['count']
+
+    # Forum stats
+    c.execute('SELECT COUNT(*) as count FROM forum_posts WHERE user_id = ?', (uid,))
+    forum_posts = c.fetchone()['count']
+    c.execute('SELECT COUNT(*) as count FROM forum_comments WHERE user_id = ?', (uid,))
+    forum_comments = c.fetchone()['count']
+
+    # XP action breakdown (user-scoped)
+    c.execute('SELECT action, COUNT(*) as count, SUM(xp_earned) as total_xp FROM xp_log WHERE user_id = ? OR user_id IS NULL GROUP BY action ORDER BY total_xp DESC', (uid,))
+    xp_breakdown = [dict(row) for row in c.fetchall()]
+
+    # Challenge stats
+    c.execute('SELECT COUNT(*) as count FROM challenge_progress WHERE completed = 1')
+    challenges_completed = c.fetchone()['count']
+
+    # Member since
+    c.execute('SELECT created_at FROM users WHERE id = ?', (user['id'],))
+    member_row = c.fetchone()
+    member_since = member_row['created_at'] if member_row else None
+
+    conn.close()
+    return jsonify({
+        'success': True,
+        'user': user,
+        'level': level_info,
+        'streak': streak_info,
+        'stats': {
+            'total_prospects': total_prospects,
+            'won_deals': won_deals,
+            'pipeline_value': pipeline_value,
+            'won_value': won_value,
+            'total_tasks': total_tasks,
+            'completed_tasks': completed_tasks,
+            'forum_posts': forum_posts,
+            'forum_comments': forum_comments,
+            'challenges_completed': challenges_completed,
+            'member_since': member_since,
+        },
+        'xp_breakdown': xp_breakdown,
+    })
 
 # ─── Forum Endpoints ─────────────────────────────────────────────────────────
 
@@ -2206,9 +2346,10 @@ def award_xp(action, detail=''):
         now = datetime.now()
         now_iso = now.isoformat()
         today_str = now.strftime('%Y-%m-%d')
+        uid = session.get('user_id')
 
-        c.execute('INSERT INTO xp_log (action, xp_earned, detail, created_at) VALUES (?, ?, ?, ?)',
-                  (action, xp, detail, now_iso))
+        c.execute('INSERT INTO xp_log (action, xp_earned, detail, created_at, user_id) VALUES (?, ?, ?, ?, ?)',
+                  (action, xp, detail, now_iso, uid))
 
         # Update streak
         c.execute('SELECT * FROM streaks LIMIT 1')
@@ -2247,15 +2388,15 @@ def award_xp(action, detail=''):
                     c.execute('UPDATE challenge_progress SET current_count = ?, completed = ?, completed_at = ? WHERE id = ?',
                               (new_count, completed, now_iso if completed else None, prog['id']))
                     if completed:
-                        c.execute('INSERT INTO xp_log (action, xp_earned, detail, created_at) VALUES (?, ?, ?, ?)',
-                                  ('challenge_completed', ch['xp_reward'], ch['title'], now_iso))
+                        c.execute('INSERT INTO xp_log (action, xp_earned, detail, created_at, user_id) VALUES (?, ?, ?, ?, ?)',
+                                  ('challenge_completed', ch['xp_reward'], ch['title'], now_iso, uid))
             else:
                 completed = 1 if 1 >= ch['target_count'] else 0
                 c.execute('INSERT INTO challenge_progress (challenge_id, current_count, completed, completed_at, date_key) VALUES (?,?,?,?,?)',
                           (ch['id'], 1, completed, now_iso if completed else None, date_key))
                 if completed:
-                    c.execute('INSERT INTO xp_log (action, xp_earned, detail, created_at) VALUES (?, ?, ?, ?)',
-                              ('challenge_completed', ch['xp_reward'], ch['title'], now_iso))
+                    c.execute('INSERT INTO xp_log (action, xp_earned, detail, created_at, user_id) VALUES (?, ?, ?, ?, ?)',
+                              ('challenge_completed', ch['xp_reward'], ch['title'], now_iso, uid))
 
         conn.commit()
         conn.close()
@@ -2265,11 +2406,12 @@ def award_xp(action, detail=''):
 @login_required
 def get_xp():
     """Get total XP, level info, streak, and challenge progress."""
+    uid = session.get('user_id')
     conn = get_db()
     c = conn.cursor()
-    c.execute('SELECT COALESCE(SUM(xp_earned), 0) as total FROM xp_log')
+    c.execute('SELECT COALESCE(SUM(xp_earned), 0) as total FROM xp_log WHERE user_id = ? OR user_id IS NULL', (uid,))
     total_xp = c.fetchone()['total']
-    c.execute('SELECT * FROM xp_log ORDER BY id DESC LIMIT 10')
+    c.execute('SELECT * FROM xp_log WHERE user_id = ? OR user_id IS NULL ORDER BY id DESC LIMIT 10', (uid,))
     recent = [dict(row) for row in c.fetchall()]
 
     # Streak info
@@ -2308,9 +2450,10 @@ def award_xp_route():
     detail = data.get('detail', '')
     xp = award_xp(action, detail)
     # Return updated level info
+    uid = session.get('user_id')
     conn = get_db()
     c = conn.cursor()
-    c.execute('SELECT COALESCE(SUM(xp_earned), 0) as total FROM xp_log')
+    c.execute('SELECT COALESCE(SUM(xp_earned), 0) as total FROM xp_log WHERE user_id = ? OR user_id IS NULL', (uid,))
     total_xp = c.fetchone()['total']
     conn.close()
     level_info = get_level_info(total_xp)
@@ -2693,7 +2836,6 @@ def get_streaks():
     return jsonify({'success': True, **streak})
 
 @app.route('/api/challenges', methods=['GET'])
-@login_required
 def get_challenges():
     conn = get_db()
     c = conn.cursor()
@@ -2722,11 +2864,19 @@ def get_leaderboard():
     c = conn.cursor()
     c.execute('''SELECT u.id, u.username, u.display_name, u.avatar,
                  COALESCE(SUM(x.xp_earned), 0) as total_xp
-                 FROM users u LEFT JOIN xp_log x ON 1=1
+                 FROM users u LEFT JOIN xp_log x ON x.user_id = u.id
                  GROUP BY u.id ORDER BY total_xp DESC LIMIT 20''')
-    leaders = [dict(row) for row in c.fetchall()]
+    leaders = []
+    for row in c.fetchall():
+        entry = dict(row)
+        level_info = get_level_info(entry['total_xp'])
+        entry['level'] = level_info['level']
+        entry['level_name'] = level_info['name']
+        entry['tier'] = level_info['tier']
+        leaders.append(entry)
+    current_uid = session.get('user_id')
     conn.close()
-    return jsonify({'success': True, 'data': leaders})
+    return jsonify({'success': True, 'data': leaders, 'current_user_id': current_uid})
 
 # ─── Forum Moderation ────────────────────────────────────────────────────────
 

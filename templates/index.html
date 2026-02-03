@@ -20,7 +20,7 @@
             <img src="/logo.png" alt="OriginOS" onerror="this.style.display='none'">
         </div>
         <div class="header-actions">
-            <span id="header-user-display" style="display:none;color:var(--green);font-size:12px;font-family:var(--font-mono);"></span>
+            <span id="header-user-display" onclick="openProfileModal()" style="display:none;color:var(--green);font-size:12px;font-family:var(--font-mono);cursor:pointer;" title="View Profile"></span>
             <button id="header-logout-btn" class="secondary small" onclick="headerLogout()" style="display:none;">Logout</button>
             <button id="header-login-btn" class="secondary small" onclick="document.getElementById('header-login-bar').style.display=document.getElementById('header-login-bar').style.display==='flex'?'none':'flex'">Login</button>
             <input type="file" id="csv-import-input" class="csv-input" accept=".csv">
@@ -65,8 +65,19 @@
         </div>
         <div class="xp-extras" style="display:flex;gap:16px;align-items:center;margin-top:4px;">
             <div id="xp-streak" style="font-size:11px;font-family:var(--font-mono);"></div>
-            <div id="xp-challenges" style="flex:1;font-size:10px;"></div>
         </div>
+        <button class="leaderboard-btn" onclick="openLeaderboardModal()" title="Leaderboard">&#127942;</button>
+    </div>
+</div>
+
+<!-- ═══════════════ CHALLENGES ═══════════════ -->
+<div class="challenges-section" id="challenges-section">
+    <div class="challenges-container" id="challenges-container">
+        <div class="challenges-header">
+            <h4 class="challenges-title">&#9876; Active Challenges</h4>
+            <span class="challenges-subtitle" id="challenges-summary"></span>
+        </div>
+        <div class="challenges-grid" id="challenges-grid"></div>
     </div>
 </div>
 
@@ -525,6 +536,26 @@
                 <button type="submit" class="primary">Add Task</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- ═══════════════ PROFILE MODAL ═══════════════ -->
+<div id="profile-modal" class="modal" onclick="if(event.target===this)closeProfileModal()">
+    <div class="modal-content profile-modal-content">
+        <button class="profile-modal-close" onclick="closeProfileModal()">&#x2715;</button>
+        <div id="profile-modal-body">
+            <div class="profile-loading">Loading profile...</div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ LEADERBOARD MODAL ═══════════════ -->
+<div id="leaderboard-modal" class="modal" onclick="if(event.target===this)closeLeaderboardModal()">
+    <div class="modal-content leaderboard-modal-content">
+        <button class="profile-modal-close" onclick="closeLeaderboardModal()">&#x2715;</button>
+        <div id="leaderboard-modal-body">
+            <div class="profile-loading">Loading leaderboard...</div>
+        </div>
     </div>
 </div>
 

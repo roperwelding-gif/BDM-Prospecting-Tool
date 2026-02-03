@@ -90,7 +90,8 @@ async function headerLogin() {
         document.getElementById('header-login-btn').style.display = 'none';
         loadProspects();
         loadAllTasks();
-        updateXPDisplay();
+        loadChallenges();
+        loadXP();
         loadStats();
     } else {
         alert(data.error || 'Login failed');
@@ -462,6 +463,47 @@ async function loadXP() {
     } catch {}
 }
 
+async function loadChallenges() {
+    try {
+        const res = await fetch(`${API_BASE}/challenges`);
+        const data = await res.json();
+        if (data.success && data.data) renderChallenges(data.data);
+    } catch {}
+}
+
+function renderChallenges(challenges) {
+    const challengeGrid = document.getElementById('challenges-grid');
+    const challengeSummary = document.getElementById('challenges-summary');
+    if (!challengeGrid) return;
+    const doneCount = challenges.filter(c => c.completed).length;
+    if (challengeSummary) {
+        challengeSummary.textContent = `${doneCount}/${challenges.length} completed`;
+    }
+    if (challenges.length === 0) {
+        challengeGrid.innerHTML = '<div class="challenges-empty">No active challenges right now.</div>';
+    } else {
+        challengeGrid.innerHTML = challenges.map(ch => {
+            const pct = Math.min(100, Math.round((ch.current_count / ch.target_count) * 100));
+            const done = ch.completed;
+            return `<div class="challenge-card${done ? ' completed' : ''}">
+                <div class="challenge-card-top">
+                    <div class="challenge-card-info">
+                        <div class="challenge-card-title${done ? ' completed' : ''}">${done ? '&#9989; ' : ''}${esc(ch.title)}</div>
+                        <div class="challenge-card-type">${esc(ch.challenge_type)}</div>
+                    </div>
+                    <div class="challenge-card-reward">+${ch.xp_reward} XP</div>
+                </div>
+                <div class="challenge-card-progress">
+                    <div class="challenge-card-bar">
+                        <div class="challenge-card-bar-fill${done ? ' completed' : ''}" style="width:${pct}%;"></div>
+                    </div>
+                    <div class="challenge-card-count${done ? ' completed' : ''}">${ch.current_count}/${ch.target_count}</div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+}
+
 function updateXPDisplay(data) {
     const trophyIcons = { bronze: '&#127942;', silver: '&#129351;', gold: '&#127941;', diamond: '&#128142;' };
     document.getElementById('xp-trophy').innerHTML = trophyIcons[data.tier] || '&#127942;';
@@ -485,20 +527,8 @@ function updateXPDisplay(data) {
             ? `<span class="streak-flame">&#128293;</span> ${s.current_streak} day streak`
             : '<span style="color:var(--text-dim);">No streak</span>';
     }
-    // Challenge display
-    const challengeEl = document.getElementById('xp-challenges');
-    if (challengeEl && data.challenges) {
-        challengeEl.innerHTML = data.challenges.slice(0, 3).map(ch => {
-            const pct = Math.min(100, Math.round((ch.current_count / ch.target_count) * 100));
-            return `<div class="challenge-item" style="margin-bottom:4px;">
-                <div style="display:flex;justify-content:space-between;font-size:10px;">
-                    <span>${esc(ch.title)}${ch.completed ? ' &#9989;' : ''}</span>
-                    <span style="color:var(--text-dim);">${ch.current_count}/${ch.target_count} (+${ch.xp_reward}XP)</span>
-                </div>
-                <div class="challenge-bar"><div class="challenge-bar-fill${ch.completed ? ' completed' : ''}" style="width:${pct}%;"></div></div>
-            </div>`;
-        }).join('');
-    }
+    // Challenge display — update with user-specific progress from XP data
+    if (data.challenges) renderChallenges(data.challenges);
 }
 
 function showXPPopup(xp, action) {
@@ -1087,6 +1117,7 @@ async function init() {
     loadProspects();
     loadAllTasks();
     loadSauceAlerts();
+    loadChallenges();
     loadXP();
     initChat();
 
@@ -2202,6 +2233,19 @@ function renderGlobalTasks() {
 function setTaskFilter(type, value) {
     if (type === 'priority') taskFilterPriority = value;
     if (type === 'category') taskFilterCategory = value;
+    // Update active states on filter buttons
+    document.querySelectorAll('.task-filter-bar .task-filter-btn').forEach(btn => {
+        const onclick = btn.getAttribute('onclick') || '';
+        const match = onclick.match(/setTaskFilter\('(\w+)','(\w+)'\)/);
+        if (match) {
+            const btnType = match[1];
+            const btnValue = match[2];
+            const currentValue = btnType === 'priority' ? taskFilterPriority : taskFilterCategory;
+            if (btnType === type) {
+                btn.classList.toggle('active', btnValue === value);
+            }
+        }
+    });
     renderGlobalTasks();
 }
 
@@ -2600,6 +2644,257 @@ function updateChatBadge() {
     const badge = document.getElementById('chat-badge');
     badge.textContent = unreadMessages;
     badge.classList.toggle('active', unreadMessages > 0);
+}
+
+// ─── PROFILE MODAL ────────────────────────────────────────────────────────
+
+async function openProfileModal() {
+    const modal = document.getElementById('profile-modal');
+    const body = document.getElementById('profile-modal-body');
+    body.innerHTML = '<div class="profile-loading">Loading profile...</div>';
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('active'));
+
+    try {
+        const res = await fetch(`${API_BASE}/profile/stats`, { credentials: 'same-origin' });
+        const data = await res.json();
+        if (data.success) {
+            renderProfileModal(data);
+        } else {
+            body.innerHTML = '<div class="profile-loading">Could not load profile. Are you logged in?</div>';
+        }
+    } catch (e) {
+        body.innerHTML = '<div class="profile-loading">Error loading profile.</div>';
+    }
+}
+
+function closeProfileModal() {
+    const modal = document.getElementById('profile-modal');
+    modal.classList.remove('active');
+    setTimeout(() => { modal.style.display = 'none'; }, 300);
+}
+
+function renderProfileModal(data) {
+    const { user, level, streak, stats, xp_breakdown } = data;
+    const body = document.getElementById('profile-modal-body');
+
+    const trophyIcons = { bronze: '&#127942;', silver: '&#129351;', gold: '&#127941;', diamond: '&#128142;' };
+    const trophy = trophyIcons[level.tier] || '&#127942;';
+    const avatarEmoji = getAvatarEmoji(user.avatar || 'avatar-default');
+
+    // Level tier dots (9 levels)
+    const TIERS = [
+        'bronze','bronze','bronze','silver','silver','gold','gold','diamond','diamond'
+    ];
+    const tierDots = TIERS.map((t, i) => {
+        const reached = level.level > i;
+        return `<div class="profile-tier-dot ${reached ? 'reached tier-' + t : ''}"></div>`;
+    }).join('');
+
+    // Format money
+    const fmtMoney = (v) => '$' + Number(v || 0).toLocaleString();
+
+    // Format action name
+    const fmtAction = (a) => a.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+    // Member since
+    let memberSince = '';
+    if (stats.member_since) {
+        const d = new Date(stats.member_since);
+        memberSince = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+
+    // Task completion rate
+    const taskRate = stats.total_tasks > 0 ? Math.round((stats.completed_tasks / stats.total_tasks) * 100) : 0;
+
+    body.innerHTML = `
+        <div class="profile-header">
+            <div class="profile-avatar tier-${esc(level.tier)}">${avatarEmoji}</div>
+            <div class="profile-identity">
+                <div class="profile-display-name">${esc(user.display_name || user.username)}</div>
+                <div class="profile-username">@${esc(user.username)}</div>
+                <span class="profile-rank-badge tier-${esc(level.tier)}">
+                    ${trophy} Lv.${level.level} ${esc(level.name)}
+                </span>
+            </div>
+        </div>
+        <div class="profile-body">
+            <!-- XP Progress -->
+            <div class="profile-xp-section">
+                <div class="profile-xp-header">
+                    <span class="profile-xp-total">${level.total_xp.toLocaleString()} XP</span>
+                    <span class="profile-xp-next">Next level: ${level.next_level_xp.toLocaleString()} XP</span>
+                </div>
+                <div class="profile-xp-bar">
+                    <div class="profile-xp-fill tier-${esc(level.tier)}" style="width: ${level.progress}%"></div>
+                </div>
+                <div class="profile-level-tiers">${tierDots}</div>
+            </div>
+
+            <!-- Streak & Challenges -->
+            <div class="profile-streak-row">
+                <div class="profile-stat-chip">
+                    <div class="profile-stat-chip-value">${streak.current_streak > 0 ? '&#128293; ' : ''}${streak.current_streak}</div>
+                    <div class="profile-stat-chip-label">Day Streak</div>
+                </div>
+                <div class="profile-stat-chip">
+                    <div class="profile-stat-chip-value">${streak.longest_streak}</div>
+                    <div class="profile-stat-chip-label">Best Streak</div>
+                </div>
+                <div class="profile-stat-chip">
+                    <div class="profile-stat-chip-value">${stats.challenges_completed}</div>
+                    <div class="profile-stat-chip-label">Challenges Done</div>
+                </div>
+            </div>
+
+            <!-- Performance Stats -->
+            <div class="profile-section-title">Performance</div>
+            <div class="profile-stats-grid">
+                <div class="profile-stat-card">
+                    <div class="profile-stat-card-value">${stats.total_prospects}</div>
+                    <div class="profile-stat-card-label">Total Prospects</div>
+                </div>
+                <div class="profile-stat-card">
+                    <div class="profile-stat-card-value">${stats.won_deals}</div>
+                    <div class="profile-stat-card-label">Won Deals</div>
+                </div>
+                <div class="profile-stat-card">
+                    <div class="profile-stat-card-value">${fmtMoney(stats.won_value)}</div>
+                    <div class="profile-stat-card-label">Revenue Won</div>
+                </div>
+                <div class="profile-stat-card">
+                    <div class="profile-stat-card-value">${fmtMoney(stats.pipeline_value)}</div>
+                    <div class="profile-stat-card-label">Pipeline Value</div>
+                </div>
+                <div class="profile-stat-card">
+                    <div class="profile-stat-card-value">${stats.completed_tasks}/${stats.total_tasks}</div>
+                    <div class="profile-stat-card-label">Tasks (${taskRate}% done)</div>
+                </div>
+                <div class="profile-stat-card">
+                    <div class="profile-stat-card-value">${stats.forum_posts + stats.forum_comments}</div>
+                    <div class="profile-stat-card-label">Forum Activity</div>
+                </div>
+            </div>
+
+            <!-- XP Breakdown -->
+            ${xp_breakdown.length > 0 ? `
+            <div class="profile-xp-breakdown">
+                <div class="profile-section-title">XP Breakdown</div>
+                ${xp_breakdown.slice(0, 8).map(row => `
+                    <div class="profile-xp-row">
+                        <span class="profile-xp-row-action">${esc(fmtAction(row.action))}</span>
+                        <span>
+                            <span class="profile-xp-row-count">${row.count}x</span>
+                            <span class="profile-xp-row-xp">+${row.total_xp} XP</span>
+                        </span>
+                    </div>
+                `).join('')}
+            </div>` : ''}
+
+            ${memberSince ? `<div class="profile-footer-info">Member since ${esc(memberSince)}</div>` : ''}
+        </div>
+    `;
+}
+
+// ─── LEADERBOARD MODAL ────────────────────────────────────────────────────
+
+async function openLeaderboardModal() {
+    const modal = document.getElementById('leaderboard-modal');
+    const body = document.getElementById('leaderboard-modal-body');
+    body.innerHTML = '<div class="profile-loading">Loading leaderboard...</div>';
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('active'));
+
+    try {
+        const res = await fetch(`${API_BASE}/leaderboard`, { credentials: 'same-origin' });
+        const data = await res.json();
+        if (data.success) {
+            renderLeaderboard(data.data, data.current_user_id);
+        } else {
+            body.innerHTML = '<div class="profile-loading">Could not load leaderboard. Are you logged in?</div>';
+        }
+    } catch (e) {
+        body.innerHTML = '<div class="profile-loading">Error loading leaderboard.</div>';
+    }
+}
+
+function closeLeaderboardModal() {
+    const modal = document.getElementById('leaderboard-modal');
+    modal.classList.remove('active');
+    setTimeout(() => { modal.style.display = 'none'; }, 300);
+}
+
+function renderLeaderboard(leaders, currentUserId) {
+    const body = document.getElementById('leaderboard-modal-body');
+    const trophyIcons = { bronze: '&#127942;', silver: '&#129351;', gold: '&#127941;', diamond: '&#128142;' };
+    const medalEmojis = ['&#129351;', '&#129352;', '&#129353;']; // gold, silver, bronze medals
+
+    if (!leaders || leaders.length === 0) {
+        body.innerHTML = `
+            <div class="leaderboard-header">
+                <div class="leaderboard-title">&#127942; Leaderboard</div>
+                <div class="leaderboard-subtitle">Top performers by XP</div>
+            </div>
+            <div class="leaderboard-empty">No users yet. Start earning XP to climb the ranks!</div>
+        `;
+        return;
+    }
+
+    // Build podium (top 3) — order is: 2nd, 1st, 3rd
+    const top3 = leaders.slice(0, 3);
+    const podiumOrder = top3.length >= 3 ? [top3[1], top3[0], top3[2]] :
+                        top3.length === 2 ? [top3[1], top3[0]] : [top3[0]];
+
+    const podiumHTML = podiumOrder.map((u, displayIdx) => {
+        // displayIdx: for 3 users: 0=2nd, 1=1st, 2=3rd
+        const actualRank = top3.length >= 3 ? [2, 1, 3][displayIdx] :
+                           top3.length === 2 ? [2, 1][displayIdx] : 1;
+        const avatar = getAvatarEmoji(u.avatar || 'avatar-default');
+        const name = esc(u.display_name || u.username);
+        const isYou = u.id === currentUserId;
+        return `
+            <div class="podium-spot">
+                <div class="podium-avatar">${avatar}</div>
+                <div class="podium-name">${name}${isYou ? '<span class="lb-you-tag">YOU</span>' : ''}</div>
+                <div class="podium-xp">${u.total_xp.toLocaleString()} XP</div>
+                <div class="podium-rank-badge tier-${esc(u.tier)}">${trophyIcons[u.tier] || ''} ${esc(u.level_name)}</div>
+                <div class="podium-pedestal">${medalEmojis[actualRank - 1] || actualRank}</div>
+            </div>
+        `;
+    }).join('');
+
+    // Build table rows for ranks 4+
+    const rest = leaders.slice(3);
+    const rowsHTML = rest.map((u, i) => {
+        const rank = i + 4;
+        const avatar = getAvatarEmoji(u.avatar || 'avatar-default');
+        const name = esc(u.display_name || u.username);
+        const isYou = u.id === currentUserId;
+        return `
+            <div class="leaderboard-row${isYou ? ' is-you' : ''}">
+                <div class="lb-rank">${rank}</div>
+                <div class="lb-avatar">${avatar}</div>
+                <div class="lb-info">
+                    <div class="lb-name">${name}${isYou ? '<span class="lb-you-tag">YOU</span>' : ''}</div>
+                    <div class="lb-level tier-${esc(u.tier)}">Lv.${u.level} ${esc(u.level_name)}</div>
+                </div>
+                <div class="lb-xp">${u.total_xp.toLocaleString()} XP</div>
+            </div>
+        `;
+    }).join('');
+
+    body.innerHTML = `
+        <div class="leaderboard-header">
+            <div class="leaderboard-title">&#127942; Leaderboard</div>
+            <div class="leaderboard-subtitle">Top performers ranked by XP</div>
+        </div>
+        <div class="leaderboard-body">
+            <div class="leaderboard-podium">
+                ${podiumHTML}
+            </div>
+            ${rest.length > 0 ? `<div class="leaderboard-divider"></div><div class="leaderboard-table">${rowsHTML}</div>` : ''}
+        </div>
+    `;
 }
 
 // ─── MODAL CLICK OUTSIDE ──────────────────────────────────────────────────

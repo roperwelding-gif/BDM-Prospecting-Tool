@@ -10,7 +10,11 @@
       "Bash(git -C \"C:\\\\Users\\\\tyler\\\\.claude-worktrees\\\\BDM Prospecting Tool\\\\angry-snyder\" show \"$branch:logo.png\" --quiet)",
       "Bash(done)",
       "Bash(ls \"C:\\\\Users\\\\tyler\\\\.claude-worktrees\\\\BDM Prospecting Tool\\\\angry-snyder\\\\static\\\\js\"\" 2>/dev/null || echo \"Directory does not exist yet \")",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(sqlite3:*)",
+      "Bash(ls:*)",
+      "Bash(pip install:*)",
+      "Bash(where:*)"
     ]
   }
 }
